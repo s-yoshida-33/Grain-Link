@@ -1,4 +1,4 @@
-import { AppSettings } from '../types/settings';
+import type { AppSettings } from '../types/settings';
 import defaultSettings from '../config/default-settings.json';
 
 // 設定読み込み関数

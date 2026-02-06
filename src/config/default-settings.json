@@ -1,6 +1,6 @@
 {
   "appMode": "VIDEO_AD",
   "mallId": "sakaikitahanada",
-  "apiEndpoint": "https://api.example.com/sse",
+  "apiEndpoint": "http://localhost:8090/api/events",
   "shopListGrid": { "rows": 4, "cols": 3 }
 }
