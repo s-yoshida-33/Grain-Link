@@ -6,9 +6,9 @@ export default defineConfig({
   base: './', 
   plugins: [react(), tailwindcss()],
   server: {
-    // ショップAPI連携用プロキシ設定（必要に応じて有効化）
+    // ショップAPI連携用プロキシ設定（Bridge API: 8090）
     proxy: {
-      "/api":  { target: "http://localhost:8080", changeOrigin: true },
+      "/api":  { target: "http://localhost:8090", changeOrigin: true },
     },
   },
 });

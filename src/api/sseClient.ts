@@ -1,5 +1,5 @@
-// SSEクライアントの実装
-// Gidoアプリの実装をベースに簡略化
+// SSEクライアントの拡張
+// REST APIとSSEを併用してデータを同期する
 
 export type SseConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
 
@@ -87,7 +87,7 @@ class SseClient {
           }
       });
       
-      // ショップ更新イベント (Bridgeアプリの仕様に準拠)
+      // ショップデータ直接更新イベント
       this.eventSource.addEventListener('shops', (e) => {
           try {
             const data = JSON.parse(e.data);
@@ -96,8 +96,12 @@ class SseClient {
             console.error('Failed to parse shops event:', err);
           }
       });
+
+      // 更新通知イベント (REST API再取得トリガー)
+      this.eventSource.addEventListener('update', (e) => {
+          this.notifyListeners('update', e.data);
+      });
       
-      // その他のカスタムイベントがあれば追加
 
     } catch (e) {
       console.error('SSE connection failed:', e);

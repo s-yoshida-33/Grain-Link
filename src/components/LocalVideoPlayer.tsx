@@ -17,11 +17,15 @@ export const LocalVideoPlayer: React.FC<LocalVideoPlayerProps> = ({
   useEffect(() => {
     if (playlist.length > 0) {
       const currentFile = playlist[currentIndex];
-      onVideoChange(currentFile);
+      // フルパスからファイル名部分だけ抽出して親コンポーネントに通知
+      // Windowsパス(\)とUnixパス(/)の両方に対応
+      const fileName = currentFile.split(/[/\\]/).pop() || currentFile;
+      onVideoChange(fileName);
       
       if (videoRef.current) {
-        // atomプロトコル経由で再生
-        videoRef.current.src = `atom://media/${currentFile}`;
+        // file:// プロトコルで再生
+        // 既にフルパスが渡されている前提
+        videoRef.current.src = `file://${currentFile}`;
         videoRef.current.play().catch(e => console.error("Auto-play failed:", e));
       }
     }

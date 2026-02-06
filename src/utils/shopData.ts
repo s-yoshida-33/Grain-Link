@@ -1,17 +1,28 @@
 // ショップデータのモック生成と正規化ロジック
 import type { Shop } from '../types/shop';
 
-// Bridge APIからの生データ形式 (推定)
+// Bridge APIからの生データ形式 (実データに基づく)
 interface BridgeShop {
-  shop_id?: string | number;
-  shopId?: string | number;
-  shop_name?: string;
+  shopId?: string;
   shopName?: string;
+  shopNameKana?: string;
+  shopNameEnglish?: string;
   genre?: string;
+  genreMemo?: string;
   area?: string;
-  floors?: string | string[];
-  description?: string; // Gidoにはないかもしれないが要件にあるため追加
-  image_url?: string;   // 同上
+  floors?: string;
+  number?: string;
+  description?: string;
+  photo1?: string;
+  photo1LocalPath?: string;
+  photo2?: string;
+  photo2LocalPath?: string; // これを使用
+  shopLogo?: string;
+  shopLogoLocalPath?: string;
+  // 以下後方互換用
+  shop_id?: string | number;
+  shop_name?: string;
+  image_url?: string;
   imageUrl?: string;
 }
 
@@ -27,14 +38,28 @@ export const normalizeShops = (rawData: any): Shop[] => {
     list = rawData.items;
   }
 
-  return list.map(item => ({
-    id: item.shop_id ?? item.shopId ?? "",
-    name: item.shop_name ?? item.shopName ?? "",
-    description: item.description || "",
-    imageUrl: item.image_url ?? item.imageUrl,
-    genre: item.genre,
-    area: item.area,
-  }));
+  return list.map(item => {
+    // 画像パスの解決: ローカルパスを file:// URL に変換
+    // Electron (WebSecurity: false) 環境下でのみ有効
+    let imageUrl = "";
+    if (item.photo2LocalPath) {
+        // Windowsパスのバックスラッシュをスラッシュに変換
+        imageUrl = `file:///${item.photo2LocalPath.replace(/\\/g, '/')}`;
+    } else if (item.photo2) {
+        imageUrl = item.photo2;
+    } else {
+        imageUrl = item.image_url ?? item.imageUrl ?? "";
+    }
+
+    return {
+        id: item.shopId ?? item.shop_id ?? "",
+        name: item.shopName ?? item.shop_name ?? "",
+        description: item.description || "",
+        imageUrl: imageUrl,
+        genre: item.genre,
+        area: item.area,
+    };
+  });
 };
 
 // モックデータジェネレーター

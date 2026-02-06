@@ -4,7 +4,19 @@ const fs = require('fs');
 
 // 設定ファイルの読み込み（開発環境用）
 // 本番環境ではユーザー設定フォルダなどを参照するように拡張が必要
-const defaultSettings = require('../src/config/default-settings.json');
+// CommonJSでJSONを読み込む際のエラー回避のため、fsを使用して読み込む
+const loadSettings = () => {
+  try {
+    const settingsPath = path.join(__dirname, '..', 'src', 'config', 'default-settings.json');
+    const settingsData = fs.readFileSync(settingsPath, 'utf8');
+    return JSON.parse(settingsData);
+  } catch (error) {
+    console.warn('Failed to load settings from file, using defaults.', error);
+    return {};
+  }
+};
+
+const defaultSettings = loadSettings();
 
 const isDev = !app.isPackaged;
 const MALL_ID = defaultSettings.mallId || 'sakaikitahanada';
@@ -30,7 +42,7 @@ function createMainWindow() {
       preload: path.join(__dirname, 'preload.cjs'),
       nodeIntegration: false,
       contextIsolation: true,
-      webSecurity: true, // atomプロトコルを使用するため有効化推奨だが、開発中はfalseの方がトラブルが少ない場合も。一旦trueでatomを試す。
+      webSecurity: false, // file:// プロトコルで動画を再生するために無効化
     },
   });
 
@@ -59,12 +71,32 @@ app.whenReady().then(() => {
     const videoDir = getVideoDirectory();
     const absolutePath = path.join(videoDir, fileName);
 
-    // console.log(`Serving video: ${absolutePath}`);
+    console.log(`[atom protocol] Request: ${url} -> File: ${absolutePath}`);
+
+    // ファイルが存在するか確認
+    if (!fs.existsSync(absolutePath)) {
+      console.error(`[atom protocol] File not found: ${absolutePath}`);
+      return new Response('File not found', { status: 404 });
+    }
     
     // Windowsパスの正規化などが必要な場合があるが、file:/// URLスキームで返す
     // pathToFileURLを使うと安全
     const { pathToFileURL } = require('url');
-    return net.fetch(pathToFileURL(absolutePath).toString());
+    // return net.fetch(pathToFileURL(absolutePath).toString());
+    
+    // net.fetch だと Range リクエストなどがうまく処理されない場合があるため
+    // file:// URL を直接返すだけにする（Chromiumがローカルファイルとして処理する）
+    // あるいは、responseヘッダーを付与して返す
+    
+    // 最も確実な方法は、file:// プロトコルへのリダイレクトではなく、
+    // fetchしてBlobとして返すのではなく、パスを解決すること。
+    // Electron 30+ では net.fetch('file://...') が推奨だが、動画の場合はRangeヘッダーなどが重要。
+    
+    // ここではシンプルに file:// URL を fetch して返す形にするが、
+    // 動画再生のためにバイパスオプションをつける
+    return net.fetch(pathToFileURL(absolutePath).toString(), {
+        bypassCustomProtocolHandlers: true,
+    });
   });
 
   createMainWindow();
@@ -80,7 +112,7 @@ app.on('window-all-closed', () => {
 
 ipcMain.handle('get-app-version', () => app.getVersion());
 
-// 動画ファイルリスト取得
+// 動画ファイルリスト取得（フルパスで返す）
 ipcMain.handle('get-video-list', async () => {
   const videoDir = getVideoDirectory();
   try {
@@ -89,8 +121,10 @@ ipcMain.handle('get-video-list', async () => {
       return [];
     }
     const files = await fs.promises.readdir(videoDir);
-    // .mp4 ファイルのみフィルタリング
-    return files.filter(file => file.toLowerCase().endsWith('.mp4'));
+    // .mp4 ファイルのみフィルタリングしてフルパスに変換
+    return files
+      .filter(file => file.toLowerCase().endsWith('.mp4'))
+      .map(file => path.join(videoDir, file)); // フルパスを返す
   } catch (error) {
     console.error('Failed to read video directory:', error);
     return [];
