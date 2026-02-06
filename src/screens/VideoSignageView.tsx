@@ -1,0 +1,55 @@
+import React, { useState, useEffect } from 'react';
+import { Shop } from '../types/shop';
+import { useActiveShopByVideo } from '../hooks/useActiveShopByVideo';
+import { LocalVideoPlayer } from '../components/LocalVideoPlayer';
+import { ShopInfoOverlay } from '../components/ShopInfoOverlay';
+import { ImageHeader } from '../components/ImageHeader';
+
+interface VideoSignageViewProps {
+  shops: Shop[];
+}
+
+export const VideoSignageView: React.FC<VideoSignageViewProps> = ({ shops }) => {
+  const [playlist, setPlaylist] = useState<string[]>([]);
+  const [currentVideoFile, setCurrentVideoFile] = useState<string>("");
+  
+  const activeShop = useActiveShopByVideo(shops, currentVideoFile);
+
+  useEffect(() => {
+    // Electron経由で動画リストを取得
+    const fetchVideos = async () => {
+      try {
+        const videos = await window.electronAPI.getVideoList();
+        // 必要に応じて並び替え（名前順など）
+        videos.sort();
+        setPlaylist(videos);
+      } catch (error) {
+        console.error("Failed to fetch video list:", error);
+      }
+    };
+
+    fetchVideos();
+  }, []);
+
+  return (
+    <div className="flex flex-col w-full h-screen overflow-hidden">
+      {/* 上：店舗イメージ画像 (H: 608px) */}
+      <div style={{ height: '608px' }} className="flex-shrink-0">
+        <ImageHeader imageUrl={activeShop?.imageUrl} />
+      </div>
+
+      {/* 中：店舗情報 (H: 704px) */}
+      <div style={{ height: '704px' }} className="flex-shrink-0 border-t border-b border-gray-200">
+        <ShopInfoOverlay shop={activeShop} />
+      </div>
+
+      {/* 下：店舗動画再生 (H: 608px) */}
+      <div style={{ height: '608px' }} className="flex-shrink-0 bg-black">
+        <LocalVideoPlayer 
+          playlist={playlist}
+          onVideoChange={setCurrentVideoFile}
+        />
+      </div>
+    </div>
+  );
+};
