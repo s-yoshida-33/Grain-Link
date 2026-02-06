@@ -1,6 +1,6 @@
 {
   "appMode": "VIDEO_AD",
-  "videoDirectory": "C:/Signage/Videos",
+  "mallId": "sakaikitahanada",
   "apiEndpoint": "https://api.example.com/sse",
   "shopListGrid": { "rows": 2, "cols": 4 }
 }
