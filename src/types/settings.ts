@@ -7,7 +7,8 @@ export interface ShopListGridConfig {
 
 export interface AppSettings {
   appMode: AppMode;
-  videoDirectory: string;
+  mallId: string;
+  videoDirectory?: string;
   apiEndpoint: string;
   shopListGrid: ShopListGridConfig;
 }
