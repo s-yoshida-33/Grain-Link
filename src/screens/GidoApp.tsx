@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useAppSettings } from '../hooks/useAppSettings';
 import { VideoSignageView } from './VideoSignageView';
 import { ShopListView } from './ShopListView';
 import { sseClient } from '../api/sseClient';
+import { fetchShopsFromApi } from '../api/restClient';
 import { normalizeShops, generateMockShops } from '../utils/shopData';
 import type { Shop } from '../types/shop';
 
@@ -11,28 +12,59 @@ export const GidoApp: React.FC = () => {
   const [shops, setShops] = useState<Shop[]>([]);
   // const [isSseConnected, setIsSseConnected] = useState(false);
 
+  // ショップデータをロードする関数
+  // providedShopsがあればそれを使い、なければREST APIから取得する
+  const loadShops = useCallback(async (providedShops?: Shop[]) => {
+    // 1. SSEからデータ(providedShops)が渡された場合はそれを使う
+    if (providedShops && providedShops.length > 0) {
+      console.log('Using shops data provided via SSE');
+      setShops(providedShops);
+      return;
+    }
+  
+    // 2. データがない場合（初期表示やupdate通知時）はREST APIを取りに行く
+    console.log('Fetching shops from REST API...');
+    const apiData = await fetchShopsFromApi();
+    
+    // API取得失敗時はモックデータなどを維持するか、空にするかは要件次第
+    // ここでは取得できた場合のみ更新
+    if (apiData.length > 0) {
+        setShops(apiData);
+    } else if (shops.length === 0) {
+        // 初回ロード失敗時にのみモックを使うなどのフォールバックも検討可能
+        console.warn('REST API returned 0 shops');
+    }
+  }, []); // shopsを依存配列に入れるとループの恐れがあるので空に
+
   // 初期データロードとSSE接続
   useEffect(() => {
     if (!settings) return;
 
     // 1. まずモックデータをロード (開発用)
-    // 本番環境でもSSE接続までのつなぎとして使用可能
     setShops(generateMockShops());
 
-    // 2. SSE接続開始
+    // 2. 初回REST APIコール
+    loadShops();
+
+    // 3. SSE接続とイベントリスナー設定
     const connectSse = async () => {
-      // SSEクライアントのセットアップ
+      // SSE接続状態ログ
       sseClient.on('status_change', ({ status }) => {
         // setIsSseConnected(status === 'connected');
         console.log('SSE Status:', status);
       });
 
+      // 'shops' イベント: JSONデータを直接反映
       sseClient.on('shops', (data) => {
-        console.log('Shops updated via SSE:', data);
+        console.log('Received "shops" event via SSE');
         const normalized = normalizeShops(data);
-        if (normalized.length > 0) {
-           setShops(normalized);
-        }
+        loadShops(normalized);
+      });
+
+      // 'update' イベント: REST API再取得
+      sseClient.on('update', () => {
+         console.log('Received "update" event via SSE - Reloading from API');
+         loadShops();
       });
       
       // エンドポイントが設定されていれば接続
@@ -46,7 +78,7 @@ export const GidoApp: React.FC = () => {
     return () => {
       sseClient.disconnect();
     };
-  }, [settings]);
+  }, [settings, loadShops]);
 
   if (settingsLoading || !settings) {
     return <div className="flex items-center justify-center h-screen">Loading settings...</div>;

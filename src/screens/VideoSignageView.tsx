@@ -19,10 +19,16 @@ export const VideoSignageView: React.FC<VideoSignageViewProps> = ({ shops }) => 
     // Electron経由で動画リストを取得
     const fetchVideos = async () => {
       try {
-        const videos = await window.electronAPI.getVideoList();
-        // 必要に応じて並び替え（名前順など）
-        videos.sort();
-        setPlaylist(videos);
+        if (window.electronAPI) {
+          const videos = await window.electronAPI.getVideoList();
+          // 必要に応じて並び替え（名前順など）
+          videos.sort();
+          setPlaylist(videos);
+        } else {
+          console.warn("Electron API not found. Running in browser mode.");
+          // ブラウザテスト用にダミーリストを設定（この場合は再生できないがエラー回避）
+          setPlaylist([]);
+        }
       } catch (error) {
         console.error("Failed to fetch video list:", error);
       }
