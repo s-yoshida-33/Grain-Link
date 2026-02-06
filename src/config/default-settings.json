@@ -2,5 +2,5 @@
   "appMode": "VIDEO_AD",
   "mallId": "sakaikitahanada",
   "apiEndpoint": "https://api.example.com/sse",
-  "shopListGrid": { "rows": 2, "cols": 4 }
+  "shopListGrid": { "rows": 4, "cols": 3 }
 }
