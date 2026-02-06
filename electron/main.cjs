@@ -38,6 +38,10 @@ function createMainWindow() {
   mainWindow = new BrowserWindow({
     width: 1080,
     height: 1920,
+    fullscreen: true,       // フルスクリーン起動
+    alwaysOnTop: true,      // 常に最前面
+    autoHideMenuBar: true,  // メニューバーを隠す (Altで表示)
+    kiosk: true,            // キオスクモード
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       nodeIntegration: false,
@@ -53,8 +57,17 @@ function createMainWindow() {
   mainWindow.loadURL(rendererUrl);
 
   if (isDev) {
-    mainWindow.webContents.openDevTools();
+    // 開発モードでも最初は閉じている方が実機に近いが、デバッグしにくければコメントアウト解除
+    // mainWindow.webContents.openDevTools();
   }
+  
+  // F12でDevToolsトグル (開発環境、本番環境問わずメンテナンス用として残す場合)
+  mainWindow.webContents.on('before-input-event', (event, input) => {
+    if (input.key === 'F12' && input.type === 'keyDown') {
+      mainWindow.webContents.toggleDevTools();
+      event.preventDefault();
+    }
+  });
 }
 
 app.whenReady().then(() => {
