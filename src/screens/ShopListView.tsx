@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
-import { Shop } from '../types/shop';
-import { ShopListGridConfig } from '../types/settings';
+import type { Shop } from '../types/shop';
+import type { ShopListGridConfig } from '../types/settings';
 import { ShopCard } from '../components/ShopCard';
 
 interface ShopListViewProps {

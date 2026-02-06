@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { AppSettings } from '../types/settings';
+import type { AppSettings } from '../types/settings';
 import { loadSettings } from '../utils/settings';
 
 export const useAppSettings = () => {

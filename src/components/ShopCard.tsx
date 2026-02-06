@@ -1,5 +1,5 @@
 import React from 'react';
-import { Shop } from '../types/shop';
+import type { Shop } from '../types/shop';
 import comingSoonSvg from '../assets/malls/sakaikitahanada/coming-soon.svg';
 
 interface ShopCardProps {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Shop } from '../types/shop';
+import type { Shop } from '../types/shop';
 import { useActiveShopByVideo } from '../hooks/useActiveShopByVideo';
 import { LocalVideoPlayer } from '../components/LocalVideoPlayer';
 import { ShopInfoOverlay } from '../components/ShopInfoOverlay';
@@ -34,17 +34,17 @@ export const VideoSignageView: React.FC<VideoSignageViewProps> = ({ shops }) => 
   return (
     <div className="flex flex-col w-full h-screen overflow-hidden">
       {/* 上：店舗イメージ画像 (H: 608px) */}
-      <div style={{ height: '608px' }} className="flex-shrink-0">
+      <div style={{ height: '608px' }} className="shrink-0">
         <ImageHeader imageUrl={activeShop?.imageUrl} />
       </div>
 
       {/* 中：店舗情報 (H: 704px) */}
-      <div style={{ height: '704px' }} className="flex-shrink-0 border-t border-b border-gray-200">
+      <div style={{ height: '704px' }} className="shrink-0 border-t border-b border-gray-200">
         <ShopInfoOverlay shop={activeShop} />
       </div>
 
       {/* 下：店舗動画再生 (H: 608px) */}
-      <div style={{ height: '608px' }} className="flex-shrink-0 bg-black">
+      <div style={{ height: '608px' }} className="shrink-0 bg-black">
         <LocalVideoPlayer 
           playlist={playlist}
           onVideoChange={setCurrentVideoFile}
