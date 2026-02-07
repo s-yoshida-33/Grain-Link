@@ -4,7 +4,6 @@ import { useActiveShopByVideo } from '../hooks/useActiveShopByVideo';
 import { LocalVideoPlayer } from '../components/LocalVideoPlayer';
 import { ShopInfoOverlay } from '../components/ShopInfoOverlay';
 import { ImageHeader } from '../components/ImageHeader';
-import videoBackBg from '../assets/malls/sakaikitahanada/video-back.webp';
 
 interface VideoSignageViewProps {
   shops: Shop[];
@@ -39,22 +38,21 @@ export const VideoSignageView: React.FC<VideoSignageViewProps> = ({ shops }) => 
   }, []);
 
   return (
-    <div className="flex flex-col w-full h-screen overflow-hidden">
-      {/* 上：店舗イメージ画像 (H: 608px) */}
-      <div style={{ height: '608px' }} className="shrink-0">
+    <div className="flex flex-col w-full h-full overflow-hidden">
+      {/* 上：店舗イメージ画像 */}
+      <div style={{ height: '31.6%' }} className="shrink-0">
         <ImageHeader imageUrl={activeShop?.imageUrl} />
       </div>
 
-      {/* 中：店舗情報 (H: 704px) */}
-      <div style={{ height: '704px' }} className="shrink-0 border-t border-b border-gray-200">
+      {/* 中：店舗情報 */}
+      <div style={{ height: '36.8%' }} className="shrink-0 ">
         <ShopInfoOverlay shop={activeShop} />
       </div>
 
-      {/* 下：店舗動画再生 (H: 608px) */}
+      {/* 下：店舗動画再生 */}
       <div 
         style={{ 
-          height: '608px',
-          backgroundImage: `url(${videoBackBg})`,
+          height: '31.6%',
           backgroundSize: 'cover',
           backgroundPosition: 'center',
         }} 
