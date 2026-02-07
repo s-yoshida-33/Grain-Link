@@ -66,6 +66,7 @@ export const normalizeShops = (rawData: any): Shop[] => {
         area: item.area,
         shopLogoLocalPath: shopLogoLocalPath,
         genreMemo: item.genreMemo,
+        number: item.number,
     };
   });
 };

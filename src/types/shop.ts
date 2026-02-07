@@ -11,4 +11,5 @@ export interface Shop {
   // 追加フィールド
   shopLogoLocalPath?: string;
   genreMemo?: string;
+  number?: string; // 区画番号
 }

@@ -2,6 +2,8 @@ import React, { useMemo } from 'react';
 import type { Shop } from '../types/shop';
 import type { ShopListGridConfig } from '../types/settings';
 import { ShopCard } from '../components/ShopCard';
+import shopListBg from '../assets/malls/sakaikitahanada/shoplist-back.webp';
+import areaTitleImage from '../assets/malls/sakaikitahanada/area-title.webp';
 
 interface ShopListViewProps {
   shops: Shop[];
@@ -38,7 +40,15 @@ export const ShopListView: React.FC<ShopListViewProps> = ({ shops, gridConfig })
   }, [shops]);
 
   return (
-    <div className="w-full h-screen bg-gray-50 p-8">
+    <div 
+      className="w-full h-full p-8 bg-cover bg-center bg-no-repeat relative"
+      style={{ backgroundImage: `url(${shopListBg})` }}
+    >
+      <img 
+        src={areaTitleImage} 
+        alt="Area Title" 
+        className="absolute top-[50px] left-1/2 -translate-x-1/2 z-10" 
+      />
        {/* 
          グリッドレイアウト: 
          gridConfig.rows / cols を使うこともできるが、
@@ -53,8 +63,10 @@ export const ShopListView: React.FC<ShopListViewProps> = ({ shops, gridConfig })
         }}
       >
         {displaySlots.map((shop, index) => (
-          <div key={index} className="w-full h-full">
-            <ShopCard shop={shop} />
+          <div key={index} className="w-full h-full flex items-center justify-center">
+            <div style={{ width: '330px', height: '368px' }}>
+              <ShopCard shop={shop} />
+            </div>
           </div>
         ))}
       </div>
