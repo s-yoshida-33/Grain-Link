@@ -1,6 +1,7 @@
 import React from 'react';
 import type { Shop } from '../types/shop';
-import comingSoonSvg from '../assets/malls/sakaikitahanada/coming-soon.svg';
+import { formatShopName, formatGenreMemo } from '../utils/format';
+import comingSoonImage from '../assets/malls/sakaikitahanada/coming-soon.webp';
 
 interface ShopCardProps {
   shop?: Shop;
@@ -9,20 +10,20 @@ interface ShopCardProps {
 export const ShopCard: React.FC<ShopCardProps> = ({ shop }) => {
   if (!shop) {
     return (
-      <div className="w-full h-full rounded-lg overflow-hidden shadow-md bg-gray-50 flex items-center justify-center">
+      <div className="w-full h-full rounded-[15px] overflow-hidden border-[3px] border-[#BF995B] flex items-center justify-center">
          <img 
-          src={comingSoonSvg} 
+          src={comingSoonImage}  
           alt="Coming Soon" 
-          className="w-full h-full object-cover"
+          className="w-full h-full object-contain"
         />
       </div>
     );
   }
 
   return (
-    <div className="w-full h-full bg-white rounded-lg overflow-hidden shadow-lg border border-gray-100 flex flex-col">
+    <div className="w-full h-full bg-[#F8F5E4] rounded-[15px] overflow-hidden border-[3px] border-[#BF995B] flex flex-col">
       {/* 店舗画像エリア (上半分程度を想定) */}
-      <div className="h-3/5 w-full bg-gray-200 relative">
+      <div className="h-[220px] w-full bg-white relative">
         {shop.imageUrl ? (
           <img 
             src={shop.imageUrl} 
@@ -37,13 +38,20 @@ export const ShopCard: React.FC<ShopCardProps> = ({ shop }) => {
       </div>
 
       {/* 店舗情報エリア */}
-      <div className="flex-1 p-4 flex flex-col justify-center items-center text-center">
-        <h3 className="text-2xl font-bold text-gray-800 mb-2">{shop.name}</h3>
-        {shop.description && (
-          <p className="text-sm text-gray-600 line-clamp-3">
-            {shop.description}
-          </p>
-        )}
+      <div className="flex-1 flex flex-col justify-center items-start">
+        <div className="flex items-center gap-2 mb-1 ml-[15px]">
+          {shop.number && (
+            <span className="text-[16px] font-bold text-white bg-[#F08300] w-[60px] inline-block text-center py-1 rounded-[3px]">
+              {shop.number}
+            </span>
+          )}
+          {shop.genreMemo && (
+            <span className="text-[16px] font-bold text-brand-brown">
+              {formatGenreMemo(shop.genreMemo)}
+            </span>
+          )}
+        </div>
+        <h3 className="text-[24px] font-bold text-brand-brown ml-[15px]">{formatShopName(shop.name)}</h3>
       </div>
     </div>
   );
