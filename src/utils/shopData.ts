@@ -12,6 +12,7 @@ interface BridgeShop {
   area?: string;
   floors?: string;
   number?: string;
+  openTime?: string; // 営業時間
   description?: string;
   photo1?: string;
   photo1LocalPath?: string;
@@ -66,6 +67,8 @@ export const normalizeShops = (rawData: any): Shop[] => {
         area: item.area,
         shopLogoLocalPath: shopLogoLocalPath,
         genreMemo: item.genreMemo,
+        number: item.number,
+        openTime: item.openTime,
     };
   });
 };
