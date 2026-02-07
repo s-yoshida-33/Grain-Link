@@ -26,7 +26,12 @@ export const ShopListView: React.FC<ShopListViewProps> = ({ shops, gridConfig })
       // 現状のShop型定義にはないので後ほど型定義を拡張する必要がある
       (shop as any).genre === TARGET_GENRE && 
       (shop as any).area === TARGET_AREA
-    );
+    ).sort((a, b) => {
+      // number: F-1から順に並ぶようにソート (自然順ソート)
+      const numA = a.number || "";
+      const numB = b.number || "";
+      return numA.localeCompare(numB, undefined, { numeric: true });
+    });
 
     // 2. 最大12枠分の配列を作成
     const slots: (Shop | undefined)[] = new Array(MAX_SLOTS).fill(undefined);
@@ -47,7 +52,7 @@ export const ShopListView: React.FC<ShopListViewProps> = ({ shops, gridConfig })
       <img 
         src={areaTitleImage} 
         alt="Area Title" 
-        className="absolute top-[50px] left-1/2 -translate-x-1/2 z-10" 
+        className="absolute top-[50px] left-1/2 -translate-x-1/2 z-10 rounded-[15px]" 
       />
        {/* 
          グリッドレイアウト: 
@@ -55,20 +60,20 @@ export const ShopListView: React.FC<ShopListViewProps> = ({ shops, gridConfig })
          12枠固定(例えば 3x4 や 2x6)であればTailwindのクラスで指定する方が簡単。
          ここでは設定値(settings.ts)を尊重しつつ、スタイルを適用する。
        */}
-      <div 
-        className="grid w-full h-full gap-6"
-        style={{
-          gridTemplateRows: `repeat(${gridConfig.rows}, minmax(0, 1fr))`,
-          gridTemplateColumns: `repeat(${gridConfig.cols}, minmax(0, 1fr))`,
-        }}
-      >
-        {displaySlots.map((shop, index) => (
-          <div key={index} className="w-full h-full flex items-center justify-center">
-            <div style={{ width: '330px', height: '368px' }}>
+      <div className="flex w-full h-full items-start justify-center pt-[320px]">
+        <div 
+          className="grid gap-[15px]"
+          style={{
+            gridTemplateRows: `repeat(${gridConfig.rows}, auto)`,
+            gridTemplateColumns: `repeat(${gridConfig.cols}, auto)`,
+          }}
+        >
+          {displaySlots.map((shop, index) => (
+            <div key={index} style={{ width: '330px', height: '368px' }}>
               <ShopCard shop={shop} />
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     </div>
   );
