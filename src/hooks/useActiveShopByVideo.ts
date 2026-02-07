@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import type { Shop } from '../types/shop';
 
 export const useActiveShopByVideo = (shops: Shop[], videoFileName: string) => {
