@@ -1,6 +1,6 @@
 import React from 'react';
 import type { Shop } from '../types/shop';
-import { formatShopName, formatGenreMemo } from '../utils/format';
+import { formatShopName, formatGenreMemo, formatLastOrder } from '../utils/format';
 import comingSoonImage from '../assets/malls/sakaikitahanada/coming-soon.webp';
 
 interface ShopCardProps {
@@ -39,7 +39,7 @@ export const ShopCard: React.FC<ShopCardProps> = ({ shop }) => {
 
       {/* 店舗情報エリア */}
       <div className="flex-1 flex flex-col justify-center items-start">
-        <div className="flex items-center gap-2 mb-1 ml-[15px]">
+        <div className="flex items-center gap-2 mb-1 ml-[8px] pt-1">
           {shop.number && (
             <span className="text-[16px] font-bold text-white bg-[#F08300] w-[60px] inline-block text-center py-1 rounded-[3px]">
               {shop.number}
@@ -51,7 +51,12 @@ export const ShopCard: React.FC<ShopCardProps> = ({ shop }) => {
             </span>
           )}
         </div>
-        <h3 className="text-[24px] font-bold text-brand-brown ml-[15px]">{formatShopName(shop.name)}</h3>
+        <h3 className="text-[24px] font-bold text-brand-brown ml-[8px]">{formatShopName(shop.name)}</h3>
+        {shop.openTime && formatLastOrder(shop.openTime) && (
+          <p className="text-[16px] font-bold text-brand-brown ml-[8px] mt-[20px]">
+            {formatLastOrder(shop.openTime)}
+          </p>
+        )}
       </div>
     </div>
   );
