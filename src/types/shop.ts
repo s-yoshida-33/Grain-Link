@@ -1,6 +1,3 @@
-import type { Shop } from '../types/shop';
-import { formatShopName, formatGenreMemo } from '../utils/format';
-
 export interface Shop {
   id: string | number;
   name: string;

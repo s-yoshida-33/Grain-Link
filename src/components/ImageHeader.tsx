@@ -25,7 +25,7 @@ export const ImageHeader: React.FC<ImageHeaderProps> = ({ imageUrl }) => {
     }
   }, [imageUrl, activeImage, imageA, imageB]);
 
-  const renderImage = (src?: string, isActive: boolean) => {
+  const renderImage = (src: string | undefined, isActive: boolean) => {
     return (
       <div 
         className="absolute top-0 left-0 w-full h-full transition-opacity duration-1000 ease-in-out bg-gray-200"
