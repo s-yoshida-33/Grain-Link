@@ -1,1 +1,25 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@700;900&display=swap');
 @import "tailwindcss";
+
+@theme {
+  --font-sans: "Noto Sans JP", sans-serif;
+  --color-brand-brown: #452B1A;
+}
+
+body {
+  font-family: var(--font-sans);
+  color: var(--color-brand-brown);
+}
+
+/* フェードアニメーション用 */
+.fade-transition {
+  transition: opacity 1s ease-in-out;
+}
+
+.opacity-0 {
+  opacity: 0;
+}
+
+.opacity-100 {
+  opacity: 1;
+}

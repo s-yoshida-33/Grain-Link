@@ -4,6 +4,7 @@ import { useActiveShopByVideo } from '../hooks/useActiveShopByVideo';
 import { LocalVideoPlayer } from '../components/LocalVideoPlayer';
 import { ShopInfoOverlay } from '../components/ShopInfoOverlay';
 import { ImageHeader } from '../components/ImageHeader';
+import videoBackBg from '../assets/malls/sakaikitahanada/video-back.webp';
 
 interface VideoSignageViewProps {
   shops: Shop[];
@@ -50,7 +51,15 @@ export const VideoSignageView: React.FC<VideoSignageViewProps> = ({ shops }) => 
       </div>
 
       {/* 下：店舗動画再生 (H: 608px) */}
-      <div style={{ height: '608px' }} className="shrink-0 bg-black">
+      <div 
+        style={{ 
+          height: '608px',
+          backgroundImage: `url(${videoBackBg})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+        }} 
+        className="shrink-0"
+      >
         <LocalVideoPlayer 
           playlist={playlist}
           onVideoChange={setCurrentVideoFile}
