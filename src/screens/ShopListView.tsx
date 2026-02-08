@@ -19,8 +19,8 @@ export const ShopListView: React.FC<ShopListViewProps> = ({ shops, gridConfig })
   const mallId = settings?.mallId || 'sakaikitahanada';
   
   // アセットパス
-  const shopListBg = `assets/malls/${mallId}/shoplist-back.webp`;
-  const areaTitleImage = `assets/malls/${mallId}/area-title.webp`;
+  const shopListBg = `./assets/malls/${mallId}/shoplist-back.webp`;
+  const areaTitleImage = `./assets/malls/${mallId}/area-title.webp`;
   
   // 表示用ショップリストの生成
   const displaySlots = useMemo(() => {
@@ -52,7 +52,7 @@ export const ShopListView: React.FC<ShopListViewProps> = ({ shops, gridConfig })
   return (
     <div 
       className="w-full h-full p-8 bg-cover bg-center bg-no-repeat relative"
-      style={{ backgroundImage: `url(${shopListBg})` }}
+      style={{ backgroundImage: `url('${shopListBg}')` }}
     >
       <img 
         src={areaTitleImage} 
