@@ -1,6 +1,7 @@
 const { app, BrowserWindow, ipcMain, protocol, net } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const { initAutoUpdater, checkForUpdates } = require('./updateChecker.cjs');
 
 // 設定ファイルの読み込み（開発環境用）
 // 本番環境ではユーザー設定フォルダなどを参照するように拡張が必要
@@ -22,6 +23,7 @@ const isDev = !app.isPackaged;
 const MALL_ID = defaultSettings.mallId || 'sakaikitahanada';
 
 let mainWindow = null;
+let patchWindow = null;
 
 // 動画ディレクトリのパス解決
 function getVideoDirectory() {
@@ -34,7 +36,48 @@ function getVideoDirectory() {
   }
 }
 
+// レンダラーのベースURLを取得
+function getRendererUrl(hash = '') {
+  const baseUrl = isDev
+    ? 'http://localhost:5173/'
+    : `file://${path.join(__dirname, '../dist/index.html')}`;
+  
+  return hash ? `${baseUrl}#${hash}` : baseUrl;
+}
+
+function createPatchWindow() {
+  if (patchWindow && !patchWindow.isDestroyed()) {
+    patchWindow.focus();
+    return;
+  }
+
+  patchWindow = new BrowserWindow({
+    width: 1024,
+    height: 768,
+    transparent: true,
+    frame: false,
+    backgroundColor: '#00000000',
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.cjs'),
+      nodeIntegration: false,
+      contextIsolation: true,
+      webSecurity: false,
+    },
+  });
+
+  patchWindow.loadURL(getRendererUrl('patch'));
+
+  patchWindow.on('closed', () => {
+    patchWindow = null;
+  });
+}
+
 function createMainWindow() {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.focus();
+    return;
+  }
+
   mainWindow = new BrowserWindow({
     width: 1080,
     height: 1920,
@@ -50,11 +93,7 @@ function createMainWindow() {
     },
   });
 
-  const rendererUrl = isDev
-    ? 'http://localhost:5173/'
-    : `file://${path.join(__dirname, '../dist/index.html')}`;
-
-  mainWindow.loadURL(rendererUrl);
+  mainWindow.loadURL(getRendererUrl());
 
   if (isDev) {
     // 開発モードでも最初は閉じている方が実機に近いが、デバッグしにくければコメントアウト解除
@@ -67,6 +106,10 @@ function createMainWindow() {
       mainWindow.webContents.toggleDevTools();
       event.preventDefault();
     }
+  });
+
+  mainWindow.on('closed', () => {
+    mainWindow = null;
   });
 }
 
@@ -112,10 +155,17 @@ app.whenReady().then(() => {
     });
   });
 
-  createMainWindow();
+  // 開発環境でも本番環境でも、まずはパッチウィンドウを表示してアップデートフローを通す
+  createPatchWindow();
+
+  // Initialize autoUpdater
+  initAutoUpdater({
+    getPatchWindow: () => patchWindow,
+    createMainWindow,
+  });
 
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createMainWindow();
+    if (BrowserWindow.getAllWindows().length === 0) createPatchWindow();
   });
 });
 
@@ -142,4 +192,20 @@ ipcMain.handle('get-video-list', async () => {
     console.error('Failed to read video directory:', error);
     return [];
   }
+});
+
+// パッチウィンドウからのイベントハンドラ
+ipcMain.on('updater:check-for-updates-ready', () => {
+  // レンダラーの準備ができたらアップデート確認開始
+  // 開発環境では自動ダウンロードは動かないことが多い（未署名など）が、
+  // ロジック確認のために呼び出す
+  checkForUpdates(false);
+});
+
+ipcMain.on('startup-wait-completed', () => {
+  console.log('Startup wait completed. Launching main window.');
+  if (patchWindow) {
+    patchWindow.close();
+  }
+  createMainWindow();
 });
