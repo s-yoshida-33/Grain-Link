@@ -14,6 +14,7 @@ let createMainWindow = null;
 function initAutoUpdater(opts) {
   getPatchWindow = opts.getPatchWindow;
   createMainWindow = opts.createMainWindow;
+  const onNoUpdate = opts.onNoUpdate;
 
   // Skip code signature verification since we don't have a valid certificate yet
   // This allows auto-update to work with unsigned/self-signed builds
@@ -45,6 +46,11 @@ function initAutoUpdater(opts) {
   });
 
   autoUpdater.on('update-not-available', () => {
+    if (onNoUpdate) {
+      onNoUpdate();
+      return;
+    }
+
     const win = getPatchWindow && getPatchWindow();
     if (!win) return;
 
@@ -81,6 +87,13 @@ function initAutoUpdater(opts) {
   });
 
   autoUpdater.on('error', (err) => {
+    // If custom handler is provided, delegate error handling (fallback to media check)
+    // providing the error object so main process can decide
+    if (onNoUpdate) {
+      onNoUpdate(err);
+      return;
+    }
+
     const win = getPatchWindow && getPatchWindow();
     if (!win) return;
 

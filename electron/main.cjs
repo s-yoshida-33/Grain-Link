@@ -2,6 +2,7 @@ const { app, BrowserWindow, ipcMain, protocol, net } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { initAutoUpdater, checkForUpdates } = require('./updateChecker.cjs');
+const { checkForMediaUpdates, downloadAndInstallMediaUpdate } = require('./mediaUpdater.cjs');
 
 // 設定ファイルの読み込み（開発環境用）
 // 本番環境ではユーザー設定フォルダなどを参照するように拡張が必要
@@ -28,11 +29,11 @@ let patchWindow = null;
 // 動画ディレクトリのパス解決
 function getVideoDirectory() {
   if (isDev) {
-    // 開発環境: プロジェクトルート/tmp/{mallId}/assets/video
-    return path.join(__dirname, '..', 'tmp', MALL_ID, 'assets', 'video');
+    // 開発環境: プロジェクトルート/tmp/{mallId}/assets/videos
+    return path.join(__dirname, '..', 'tmp', MALL_ID, 'assets', 'videos');
   } else {
-    // 本番環境: AppData/Grain-Link/video (またはユーザー定義パス)
-    return path.join(app.getPath('userData'), 'video');
+    // 本番環境: AppData/Grain-Link/videos (またはユーザー定義パス)
+    return path.join(app.getPath('userData'), 'videos');
   }
 }
 
@@ -162,6 +163,81 @@ app.whenReady().then(() => {
   initAutoUpdater({
     getPatchWindow: () => patchWindow,
     createMainWindow,
+    onNoUpdate: async (error) => {
+      // App update not found or error.
+      if (error) {
+        console.error('App update error/not-found, checking media update...', error);
+      } else {
+        console.log('App is up to date, checking media update...');
+      }
+
+      // Check media update
+      if (patchWindow && !patchWindow.isDestroyed()) {
+        patchWindow.webContents.send('update-status', {
+          state: 'checking',
+          message: 'メディアの更新を確認中…',
+        });
+      }
+
+      try {
+        const updateInfo = await checkForMediaUpdates();
+
+        if (updateInfo) {
+          if (patchWindow && !patchWindow.isDestroyed()) {
+            patchWindow.webContents.send('update-status', {
+              state: 'available',
+              message: 'メディアの更新をダウンロード中…',
+            });
+          }
+
+          await downloadAndInstallMediaUpdate(updateInfo, (percent, transferred, total) => {
+            if (patchWindow && !patchWindow.isDestroyed()) {
+              patchWindow.webContents.send('update-progress', {
+                percent,
+                transferred,
+                total,
+                speed: 0, // Not calculated
+              });
+            }
+          });
+
+          if (patchWindow && !patchWindow.isDestroyed()) {
+            patchWindow.webContents.send('update-status', {
+              state: 'downloaded',
+              message: 'メディア更新完了。',
+            });
+          }
+
+          // Wait a bit then proceed to wait/launch
+          setTimeout(() => {
+            if (patchWindow && !patchWindow.isDestroyed()) {
+              // Send 'none' to trigger wait timer
+              patchWindow.webContents.send('update-status', {
+                state: 'none',
+                message: '起動準備完了。',
+              });
+            }
+          }, 1500);
+        } else {
+          // No media update
+          if (patchWindow && !patchWindow.isDestroyed()) {
+            patchWindow.webContents.send('update-status', {
+              state: 'none',
+              message: '最新バージョンです。',
+            });
+          }
+        }
+      } catch (e) {
+        console.error('Media update failed', e);
+        if (patchWindow && !patchWindow.isDestroyed()) {
+          // Treat as no update/error, allow proceed
+          patchWindow.webContents.send('update-status', {
+            state: 'error',
+            message: 'メディア更新失敗。起動します…',
+          });
+        }
+      }
+    },
   });
 
   app.on('activate', () => {
