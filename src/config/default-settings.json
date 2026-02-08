@@ -1,6 +1,6 @@
 {
   "appMode": "SHOP_LIST",
   "mallId": "sakaikitahanada",
-  "apiEndpoint": "/api/events",
+  "apiEndpoint": "http://localhost:8090/api/event",
   "shopListGrid": { "rows": 4, "cols": 3 }
 }
