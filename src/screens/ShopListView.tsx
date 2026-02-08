@@ -19,8 +19,8 @@ export const ShopListView: React.FC<ShopListViewProps> = ({ shops, gridConfig })
   const mallId = settings?.mallId || 'sakaikitahanada';
   
   // アセットパス
-  const shopListBg = `/assets/malls/${mallId}/shoplist-back.webp`;
-  const areaTitleImage = `/assets/malls/${mallId}/area-title.webp`;
+  const shopListBg = `assets/malls/${mallId}/shoplist-back.webp`;
+  const areaTitleImage = `assets/malls/${mallId}/area-title.webp`;
   
   // 表示用ショップリストの生成
   const displaySlots = useMemo(() => {

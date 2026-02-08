@@ -10,7 +10,7 @@ interface ShopCardProps {
 export const ShopCard: React.FC<ShopCardProps> = ({ shop }) => {
   const { settings } = useAppSettings();
   const mallId = settings?.mallId || 'sakaikitahanada';
-  const comingSoonImage = `/assets/malls/${mallId}/coming-soon.webp`;
+  const comingSoonImage = `assets/malls/${mallId}/coming-soon.webp`;
 
   if (!shop) {
     return (
