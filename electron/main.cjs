@@ -192,6 +192,11 @@ app.whenReady().then(() => {
   });
 
   // 開発環境でも本番環境でも、まずはパッチウィンドウを表示してアップデートフローを通す
+  if (isDev) {
+    createMainWindow();
+    return;
+  }
+
   createPatchWindow();
 
   // Initialize autoUpdater
@@ -276,7 +281,10 @@ app.whenReady().then(() => {
   });
 
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createPatchWindow();
+    if (BrowserWindow.getAllWindows().length === 0) {
+      if (isDev) createMainWindow();
+      else createPatchWindow();
+    }
   });
 });
 
