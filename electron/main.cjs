@@ -1,12 +1,19 @@
 const { app, BrowserWindow, ipcMain, protocol, net } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const logger = require('./logger.cjs');
 const { initAutoUpdater, checkForUpdates } = require('./updateChecker.cjs');
 const { checkForMediaUpdates, downloadAndInstallMediaUpdate } = require('./mediaUpdater.cjs');
 
 // 設定ファイルの読み込み
 // 本番環境ではユーザー設定フォルダ(AppData)を参照し、
 // 存在しない場合はデフォルト設定ファイルをコピーして作成する
+try {
+  logger.configureLogger();
+} catch (e) {
+  console.error('Failed to configure logger:', e);
+}
+
 const loadSettings = () => {
   try {
     const userDataPath = app.getPath('userData');
@@ -22,12 +29,12 @@ const loadSettings = () => {
       if (fs.existsSync(defaultSettingsPath)) {
         try {
           fs.copyFileSync(defaultSettingsPath, settingsPath);
-          console.log(`Created settings file at ${settingsPath}`);
+          logger.info(`Created settings file at ${settingsPath}`);
         } catch (copyError) {
-          console.error('Failed to copy default settings:', copyError);
+          logger.error('Failed to copy default settings:', { error: copyError });
         }
       } else {
-        console.warn('Default settings file not found:', defaultSettingsPath);
+        logger.warn('Default settings file not found:', { path: defaultSettingsPath });
       }
     }
 
@@ -41,7 +48,7 @@ const loadSettings = () => {
     
     return {};
   } catch (error) {
-    console.warn('Failed to load settings, using empty defaults.', error);
+    logger.warn('Failed to load settings, using empty defaults.', { error });
     return {};
   }
 };
@@ -156,11 +163,11 @@ app.whenReady().then(() => {
     const videoDir = getVideoDirectory();
     const absolutePath = path.join(videoDir, fileName);
 
-    console.log(`[atom protocol] Request: ${url} -> File: ${absolutePath}`);
+    logger.debug(`[atom protocol] Request: ${url} -> File: ${absolutePath}`);
 
     // ファイルが存在するか確認
     if (!fs.existsSync(absolutePath)) {
-      console.error(`[atom protocol] File not found: ${absolutePath}`);
+      logger.error(`[atom protocol] File not found: ${absolutePath}`);
       return new Response('File not found', { status: 404 });
     }
     
@@ -194,9 +201,9 @@ app.whenReady().then(() => {
     onNoUpdate: async (error) => {
       // App update not found or error.
       if (error) {
-        console.error('App update error/not-found, checking media update...', error);
+        logger.error('App update error/not-found, checking media update...', { error });
       } else {
-        console.log('App is up to date, checking media update...');
+        logger.info('App is up to date, checking media update...');
       }
 
       // Check media update
@@ -256,7 +263,7 @@ app.whenReady().then(() => {
           }
         }
       } catch (e) {
-        console.error('Media update failed', e);
+        logger.error('Media update failed', { error: e });
         if (patchWindow && !patchWindow.isDestroyed()) {
           // Treat as no update/error, allow proceed
           patchWindow.webContents.send('update-status', {
@@ -287,7 +294,7 @@ ipcMain.handle('get-video-list', async () => {
   const videoDir = getVideoDirectory();
   try {
     if (!fs.existsSync(videoDir)) {
-      console.warn(`Video directory not found: ${videoDir}`);
+      logger.warn(`Video directory not found: ${videoDir}`);
       return [];
     }
     const files = await fs.promises.readdir(videoDir);
@@ -296,7 +303,7 @@ ipcMain.handle('get-video-list', async () => {
       .filter(file => file.toLowerCase().endsWith('.mp4'))
       .map(file => path.join(videoDir, file)); // フルパスを返す
   } catch (error) {
-    console.error('Failed to read video directory:', error);
+    logger.error('Failed to read video directory:', { error });
     return [];
   }
 });
@@ -310,9 +317,17 @@ ipcMain.on('updater:check-for-updates-ready', () => {
 });
 
 ipcMain.on('startup-wait-completed', () => {
-  console.log('Startup wait completed. Launching main window.');
+  logger.info('Startup wait completed. Launching main window.');
   if (patchWindow) {
     patchWindow.close();
   }
   createMainWindow();
+});
+
+ipcMain.on('log-message', (_event, payload) => {
+  try {
+    logger.logFromRenderer(payload || {});
+  } catch (error) {
+    console.error('Failed to handle log-message IPC', error);
+  }
 });
