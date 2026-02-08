@@ -5,6 +5,10 @@
   "type": "module",
   "description": "Grain Link Application",
   "author": "Toei Techno International Inc.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/s-yoshida-33/Grain-Link.git"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
@@ -20,6 +24,11 @@
     "appId": "com.tti.grain-link",
     "productName": "Grain Link",
     "copyright": "© 2026 Toei Techno International Inc.",
+    "publish": {
+      "provider": "github",
+      "owner": "s-yoshida-33",
+      "repo": "Grain-Link"
+    },
     "directories": {
       "output": "release",
       "buildResources": "build"
