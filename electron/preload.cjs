@@ -29,3 +29,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getSettings: () => ipcRenderer.invoke('get-settings'),
   getVideoList: () => ipcRenderer.invoke('get-video-list'),
 });
+
+contextBridge.exposeInMainWorld('logger', {
+  log: (payload) => ipcRenderer.send('log-message', payload),
+});
