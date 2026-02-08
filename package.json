@@ -1,7 +1,7 @@
 {
   "name": "grain-link",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "description": "Grain Link Application",
   "author": "Toei Techno International Inc.",
@@ -47,7 +47,8 @@
     ],
     "win": {
       "target": "nsis",
-      "artifactName": "GrainLinkSetup-${arch}-${version}.exe"
+      "artifactName": "GrainLinkSetup-${arch}-${version}.exe",
+      "icon": "build/icon.ico"
     },
     "nsis": {
       "oneClick": false,

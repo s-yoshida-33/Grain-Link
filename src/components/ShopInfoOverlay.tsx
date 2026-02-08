@@ -10,12 +10,12 @@ interface ShopInfoOverlayProps {
 export const ShopInfoOverlay: React.FC<ShopInfoOverlayProps> = ({ shop }) => {
   const { settings } = useAppSettings();
   const mallId = settings?.mallId || 'sakaikitahanada';
-  const videoBackBg = `/assets/malls/${mallId}/video-back.webp`;
-  const logoFrame = `/assets/malls/${mallId}/logo-frame.webp`;
+  const videoBackBg = `./assets/malls/${mallId}/video-back.webp`;
+  const logoFrame = `./assets/malls/${mallId}/logo-frame.webp`;
 
   // 背景スタイル（共通）
   const containerStyle: React.CSSProperties = {
-    backgroundImage: `url(${videoBackBg})`,
+    backgroundImage: `url('${videoBackBg}')`,
     backgroundSize: 'cover',
     backgroundPosition: 'center',
   };
