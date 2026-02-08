@@ -26,5 +26,6 @@ contextBridge.exposeInMainWorld('appInfo', {
 
 contextBridge.exposeInMainWorld('electronAPI', {
   getAppVersion: () => ipcRenderer.invoke('get-app-version'),
+  getSettings: () => ipcRenderer.invoke('get-settings'),
   getVideoList: () => ipcRenderer.invoke('get-video-list'),
 });

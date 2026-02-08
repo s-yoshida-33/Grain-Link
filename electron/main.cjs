@@ -4,16 +4,44 @@ const fs = require('fs');
 const { initAutoUpdater, checkForUpdates } = require('./updateChecker.cjs');
 const { checkForMediaUpdates, downloadAndInstallMediaUpdate } = require('./mediaUpdater.cjs');
 
-// 設定ファイルの読み込み（開発環境用）
-// 本番環境ではユーザー設定フォルダなどを参照するように拡張が必要
-// CommonJSでJSONを読み込む際のエラー回避のため、fsを使用して読み込む
+// 設定ファイルの読み込み
+// 本番環境ではユーザー設定フォルダ(AppData)を参照し、
+// 存在しない場合はデフォルト設定ファイルをコピーして作成する
 const loadSettings = () => {
   try {
-    const settingsPath = path.join(__dirname, '..', 'src', 'config', 'default-settings.json');
-    const settingsData = fs.readFileSync(settingsPath, 'utf8');
-    return JSON.parse(settingsData);
+    const userDataPath = app.getPath('userData');
+    const settingsPath = path.join(userDataPath, 'settings.json');
+    
+    // 開発環境と本番環境でデフォルト設定ファイルのパスが異なる
+    const defaultSettingsPath = app.isPackaged
+      ? path.join(process.resourcesPath, 'default-settings.json')
+      : path.join(__dirname, '..', 'src', 'config', 'default-settings.json');
+
+    // ユーザー設定ファイルが存在しない場合、デフォルト設定をコピー
+    if (!fs.existsSync(settingsPath)) {
+      if (fs.existsSync(defaultSettingsPath)) {
+        try {
+          fs.copyFileSync(defaultSettingsPath, settingsPath);
+          console.log(`Created settings file at ${settingsPath}`);
+        } catch (copyError) {
+          console.error('Failed to copy default settings:', copyError);
+        }
+      } else {
+        console.warn('Default settings file not found:', defaultSettingsPath);
+      }
+    }
+
+    // 設定ファイルを読み込む（コピーに失敗した場合などはデフォルト設定ファイルを直接読むフォールバックも考慮）
+    const pathToLoad = fs.existsSync(settingsPath) ? settingsPath : defaultSettingsPath;
+    
+    if (fs.existsSync(pathToLoad)) {
+      const settingsData = fs.readFileSync(pathToLoad, 'utf8');
+      return JSON.parse(settingsData);
+    }
+    
+    return {};
   } catch (error) {
-    console.warn('Failed to load settings from file, using defaults.', error);
+    console.warn('Failed to load settings, using empty defaults.', error);
     return {};
   }
 };
@@ -250,6 +278,9 @@ app.on('window-all-closed', () => {
 });
 
 ipcMain.handle('get-app-version', () => app.getVersion());
+
+// 設定ファイルの内容を取得
+ipcMain.handle('get-settings', () => loadSettings());
 
 // 動画ファイルリスト取得（フルパスで返す）
 ipcMain.handle('get-video-list', async () => {

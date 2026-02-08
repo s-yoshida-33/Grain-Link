@@ -39,6 +39,12 @@
       "electron/**/*",
       "package.json"
     ],
+    "extraResources": [
+      {
+        "from": "src/config/default-settings.json",
+        "to": "default-settings.json"
+      }
+    ],
     "win": {
       "target": "nsis",
       "artifactName": "GrainLinkSetup-${arch}-${version}.exe"

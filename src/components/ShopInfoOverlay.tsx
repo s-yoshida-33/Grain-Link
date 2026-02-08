@@ -1,14 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import type { Shop } from '../types/shop';
 import { formatShopName, formatGenreMemo } from '../utils/format';
-import videoBackBg from '../assets/malls/sakaikitahanada/video-back.webp';
-import logoFrame from '../assets/malls/sakaikitahanada/logo-frame.webp';
+import { useAppSettings } from '../hooks/useAppSettings';
 
 interface ShopInfoOverlayProps {
   shop: Shop | null;
 }
 
 export const ShopInfoOverlay: React.FC<ShopInfoOverlayProps> = ({ shop }) => {
+  const { settings } = useAppSettings();
+  const mallId = settings?.mallId || 'sakaikitahanada';
+  const videoBackBg = `/assets/malls/${mallId}/video-back.webp`;
+  const logoFrame = `/assets/malls/${mallId}/logo-frame.webp`;
+
   // 背景スタイル（共通）
   const containerStyle: React.CSSProperties = {
     backgroundImage: `url(${videoBackBg})`,

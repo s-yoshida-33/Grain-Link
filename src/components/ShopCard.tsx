@@ -1,13 +1,17 @@
 import React from 'react';
 import type { Shop } from '../types/shop';
 import { formatShopName, formatGenreMemo, formatLastOrder } from '../utils/format';
-import comingSoonImage from '../assets/malls/sakaikitahanada/coming-soon.webp';
+import { useAppSettings } from '../hooks/useAppSettings';
 
 interface ShopCardProps {
   shop?: Shop;
 }
 
 export const ShopCard: React.FC<ShopCardProps> = ({ shop }) => {
+  const { settings } = useAppSettings();
+  const mallId = settings?.mallId || 'sakaikitahanada';
+  const comingSoonImage = `/assets/malls/${mallId}/coming-soon.webp`;
+
   if (!shop) {
     return (
       <div className="w-full h-full rounded-[15px] overflow-hidden border-[3px] border-[#BF995B] flex items-center justify-center">
