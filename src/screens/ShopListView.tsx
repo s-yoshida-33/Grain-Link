@@ -2,8 +2,7 @@ import React, { useMemo } from 'react';
 import type { Shop } from '../types/shop';
 import type { ShopListGridConfig } from '../types/settings';
 import { ShopCard } from '../components/ShopCard';
-import shopListBg from '../assets/malls/sakaikitahanada/shoplist-back.webp';
-import areaTitleImage from '../assets/malls/sakaikitahanada/area-title.webp';
+import { useAppSettings } from '../hooks/useAppSettings';
 
 interface ShopListViewProps {
   shops: Shop[];
@@ -16,6 +15,12 @@ const TARGET_AREA = "Food Forest";
 const MAX_SLOTS = 12; // 全12枠固定
 
 export const ShopListView: React.FC<ShopListViewProps> = ({ shops, gridConfig }) => {
+  const { settings } = useAppSettings();
+  const mallId = settings?.mallId || 'sakaikitahanada';
+  
+  // アセットパス
+  const shopListBg = `/assets/malls/${mallId}/shoplist-back.webp`;
+  const areaTitleImage = `/assets/malls/${mallId}/area-title.webp`;
   
   // 表示用ショップリストの生成
   const displaySlots = useMemo(() => {

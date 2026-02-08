@@ -1,5 +1,8 @@
+import type { AppSettings } from './settings';
+
 export interface ElectronAPI {
   getAppVersion: () => Promise<string>;
+  getSettings: () => Promise<AppSettings>;
   getVideoList: () => Promise<string[]>;
 }
 

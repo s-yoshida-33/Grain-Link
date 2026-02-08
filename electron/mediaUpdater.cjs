@@ -5,18 +5,34 @@ const fs = require('fs');
 const AdmZip = require('adm-zip');
 const logger = require('electron-log');
 
-// Load default settings to get mallId
+// Load settings to get mallId
 let MALL_ID = 'sakaikitahanada'; // Fallback
 try {
-  const settingsPath = path.join(__dirname, '..', 'src', 'config', 'default-settings.json');
+  const userDataPath = app.getPath('userData');
+  const settingsPath = path.join(userDataPath, 'settings.json');
+  
+  // Try to load from User Data first
   if (fs.existsSync(settingsPath)) {
     const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
     if (settings.mallId) {
       MALL_ID = settings.mallId;
     }
+  } else {
+    // Fallback to default settings if user settings don't exist yet
+    // (Though main process should have created it by now usually)
+    const defaultSettingsPath = app.isPackaged
+      ? path.join(process.resourcesPath, 'default-settings.json')
+      : path.join(__dirname, '..', 'src', 'config', 'default-settings.json');
+
+    if (fs.existsSync(defaultSettingsPath)) {
+      const settings = JSON.parse(fs.readFileSync(defaultSettingsPath, 'utf8'));
+      if (settings.mallId) {
+        MALL_ID = settings.mallId;
+      }
+    }
   }
 } catch (e) {
-  logger.warn('Failed to load default-settings.json, using fallback mallId', e);
+  logger.warn('Failed to load settings, using fallback mallId', e);
 }
 
 const REPO = 's-yoshida-33/Grain-Link';
