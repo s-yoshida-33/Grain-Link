@@ -76,50 +76,71 @@ const saveSettings = (newSettings) => {
 const createMenuTemplate = () => {
   return [
     {
-      label: 'メニュー',
+      label: 'File',
       submenu: [
-        {
-          label: '設定',
-          submenu: [
-            {
-              label: '音声設定',
-              submenu: [
-                {
-                  label: '📢 音声: 有効',
-                  type: 'radio',
-                  checked: !defaultSettings.isMuted,
-                  click: () => {
-                    const updated = saveSettings({ isMuted: false });
-                    if (mainWindow && !mainWindow.isDestroyed()) {
-                      mainWindow.webContents.send('settings-updated', updated);
-                    }
-                  },
-                },
-                {
-                  label: '🔇 音声: 無効',
-                  type: 'radio',
-                  checked: defaultSettings.isMuted || false,
-                  click: () => {
-                    const updated = saveSettings({ isMuted: true });
-                    if (mainWindow && !mainWindow.isDestroyed()) {
-                      mainWindow.webContents.send('settings-updated', updated);
-                    }
-                  },
-                },
-              ],
-            },
-          ],
-        },
+        { role: 'quit', label: 'Exit' }
+      ]
+    },
+    {
+      label: 'Edit',
+      submenu: [
+        { role: 'undo', label: 'Undo' },
+        { role: 'redo', label: 'Redo' },
+        { type: 'separator' },
+        { role: 'cut', label: 'Cut' },
+        { role: 'copy', label: 'Copy' },
+        { role: 'paste', label: 'Paste' }
+      ]
+    },
+    {
+      label: 'View',
+      submenu: [
+        { role: 'reload', label: 'Reload' },
+        { role: 'forceReload', label: 'Force Reload' },
+        { role: 'toggleDevTools', label: 'Toggle Developer Tools' },
+        { type: 'separator' },
+        { role: 'toggleFullscreen', label: 'Toggle Fullscreen' },
         { type: 'separator' },
         {
-          label: '閉じる',
-          accelerator: 'Alt+F4',
-          click: () => {
-            if (mainWindow) mainWindow.close();
-          },
-        },
-      ],
+          label: 'Audio',
+          submenu: [
+            {
+              label: 'Enabled',
+              type: 'radio',
+              checked: !defaultSettings.isMuted,
+              click: () => {
+                const updated = saveSettings({ isMuted: false });
+                if (mainWindow && !mainWindow.isDestroyed()) {
+                  mainWindow.webContents.send('settings-updated', updated);
+                }
+              },
+            },
+            {
+              label: 'Disabled',
+              type: 'radio',
+              checked: defaultSettings.isMuted || false,
+              click: () => {
+                const updated = saveSettings({ isMuted: true });
+                if (mainWindow && !mainWindow.isDestroyed()) {
+                  mainWindow.webContents.send('settings-updated', updated);
+                }
+              },
+            },
+          ],
+        }
+      ]
     },
+    {
+      label: 'Help',
+      submenu: [
+        {
+          label: 'About',
+          click: () => {
+            // About dialog
+          }
+        }
+      ]
+    }
   ];
 };
 
