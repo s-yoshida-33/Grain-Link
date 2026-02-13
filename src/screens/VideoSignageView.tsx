@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import type { Shop } from '../types/shop';
 import { useActiveShopByVideo } from '../hooks/useActiveShopByVideo';
+import { useAppSettings } from '../hooks/useAppSettings';
 import { LocalVideoPlayer } from '../components/LocalVideoPlayer';
 import { ShopInfoOverlay } from '../components/ShopInfoOverlay';
 import { ImageHeader } from '../components/ImageHeader';
@@ -12,7 +13,8 @@ interface VideoSignageViewProps {
 export const VideoSignageView: React.FC<VideoSignageViewProps> = ({ shops }) => {
   const [playlist, setPlaylist] = useState<string[]>([]);
   const [currentVideoFile, setCurrentVideoFile] = useState<string>("");
-  
+  const { settings } = useAppSettings();
+
   const activeShop = useActiveShopByVideo(shops, currentVideoFile);
 
   useEffect(() => {
@@ -58,9 +60,10 @@ export const VideoSignageView: React.FC<VideoSignageViewProps> = ({ shops }) => 
         }} 
         className="shrink-0"
       >
-        <LocalVideoPlayer 
+        <LocalVideoPlayer
           playlist={playlist}
           onVideoChange={setCurrentVideoFile}
+          muted={settings?.isMuted || false}
         />
       </div>
     </div>

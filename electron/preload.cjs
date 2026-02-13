@@ -28,6 +28,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getAppVersion: () => ipcRenderer.invoke('get-app-version'),
   getSettings: () => ipcRenderer.invoke('get-settings'),
   getVideoList: () => ipcRenderer.invoke('get-video-list'),
+  saveSettings: (settings) => ipcRenderer.invoke('save-settings', settings),
+  onSettingsUpdate: (callback) => {
+    ipcRenderer.on('settings-updated', (_event, settings) => callback(settings));
+  },
 });
 
 contextBridge.exposeInMainWorld('logger', {

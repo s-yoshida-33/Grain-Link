@@ -11,6 +11,13 @@ export const useAppSettings = () => {
       setSettings(config);
       setLoading(false);
     });
+
+    // メインプロセスからの設定更新イベントをリッスン
+    if (window.electronAPI && window.electronAPI.onSettingsUpdate) {
+      window.electronAPI.onSettingsUpdate((updatedSettings) => {
+        setSettings(updatedSettings);
+      });
+    }
   }, []);
 
   return { settings, loading };

@@ -11,4 +11,5 @@ export interface AppSettings {
   videoDirectory?: string;
   apiEndpoint: string;
   shopListGrid: ShopListGridConfig;
+  isMuted?: boolean;
 }
