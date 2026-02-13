@@ -57,7 +57,7 @@ export const ShopListView: React.FC<ShopListViewProps> = ({ shops, gridConfig })
       <img 
         src={areaTitleImage} 
         alt="Area Title" 
-        className="absolute top-[50px] left-1/2 -translate-x-1/2 z-10 rounded-[15px]" 
+        className="absolute top-12.5 left-1/2 -translate-x-1/2 z-10 rounded-[15px]" 
       />
        {/* 
          グリッドレイアウト: 
@@ -65,9 +65,9 @@ export const ShopListView: React.FC<ShopListViewProps> = ({ shops, gridConfig })
          12枠固定(例えば 3x4 や 2x6)であればTailwindのクラスで指定する方が簡単。
          ここでは設定値(settings.ts)を尊重しつつ、スタイルを適用する。
        */}
-      <div className="flex w-full h-full items-start justify-center pt-[320px]">
+      <div className="flex w-full h-full items-start justify-center pt-80">
         <div 
-          className="grid gap-[15px]"
+          className="grid gap-3.75"
           style={{
             gridTemplateRows: `repeat(${gridConfig.rows}, auto)`,
             gridTemplateColumns: `repeat(${gridConfig.cols}, auto)`,
