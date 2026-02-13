@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, protocol, net } = require('electron');
+const { app, BrowserWindow, ipcMain, protocol, net, Menu } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const logger = require('./logger.cjs');
@@ -54,6 +54,74 @@ const loadSettings = () => {
 };
 
 const defaultSettings = loadSettings();
+
+const saveSettings = (newSettings) => {
+  try {
+    const userDataPath = app.getPath('userData');
+    const settingsPath = path.join(userDataPath, 'settings.json');
+
+    const currentSettings = loadSettings();
+    const mergedSettings = { ...currentSettings, ...newSettings };
+
+    fs.writeFileSync(settingsPath, JSON.stringify(mergedSettings, null, 2), 'utf8');
+    logger.info('Settings saved successfully', { settings: mergedSettings });
+
+    return mergedSettings;
+  } catch (error) {
+    logger.error('Failed to save settings:', { error });
+    throw error;
+  }
+};
+
+const createMenuTemplate = () => {
+  return [
+    {
+      label: 'メニュー',
+      submenu: [
+        {
+          label: '設定',
+          submenu: [
+            {
+              label: '音声設定',
+              submenu: [
+                {
+                  label: '📢 音声: 有効',
+                  type: 'radio',
+                  checked: !defaultSettings.isMuted,
+                  click: () => {
+                    const updated = saveSettings({ isMuted: false });
+                    if (mainWindow && !mainWindow.isDestroyed()) {
+                      mainWindow.webContents.send('settings-updated', updated);
+                    }
+                  },
+                },
+                {
+                  label: '🔇 音声: 無効',
+                  type: 'radio',
+                  checked: defaultSettings.isMuted || false,
+                  click: () => {
+                    const updated = saveSettings({ isMuted: true });
+                    if (mainWindow && !mainWindow.isDestroyed()) {
+                      mainWindow.webContents.send('settings-updated', updated);
+                    }
+                  },
+                },
+              ],
+            },
+          ],
+        },
+        { type: 'separator' },
+        {
+          label: '閉じる',
+          accelerator: 'Alt+F4',
+          click: () => {
+            if (mainWindow) mainWindow.close();
+          },
+        },
+      ],
+    },
+  ];
+};
 
 const isDev = !app.isPackaged;
 const MALL_ID = defaultSettings.mallId || 'sakaikitahanada';
@@ -130,6 +198,10 @@ function createMainWindow() {
   });
 
   mainWindow.loadURL(getRendererUrl());
+
+  // メニューバーをセット
+  const menu = Menu.buildFromTemplate(createMenuTemplate());
+  Menu.setApplicationMenu(menu);
 
   if (isDev) {
     // 開発モードでも最初は閉じている方が実機に近いが、デバッグしにくければコメントアウト解除
@@ -313,6 +385,21 @@ ipcMain.handle('get-video-list', async () => {
   } catch (error) {
     logger.error('Failed to read video directory:', { error });
     return [];
+  }
+});
+
+// 設定を保存し、レンダラーに通知を送る
+ipcMain.handle('save-settings', async (_event, settings) => {
+  try {
+    const updated = saveSettings(settings);
+    // メインウィンドウに設定更新を通知
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('settings-updated', updated);
+    }
+    return updated;
+  } catch (error) {
+    logger.error('IPC: Failed to save settings:', { error });
+    throw error;
   }
 });
 

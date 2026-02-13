@@ -4,6 +4,8 @@ export interface ElectronAPI {
   getAppVersion: () => Promise<string>;
   getSettings: () => Promise<AppSettings>;
   getVideoList: () => Promise<string[]>;
+  saveSettings: (settings: Partial<AppSettings>) => Promise<AppSettings>;
+  onSettingsUpdate: (callback: (settings: AppSettings) => void) => void;
 }
 
 export interface UpdaterAPI {

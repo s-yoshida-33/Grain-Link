@@ -4,12 +4,14 @@ interface LocalVideoPlayerProps {
   playlist: string[];
   onVideoChange: (fileName: string) => void;
   className?: string;
+  muted?: boolean;
 }
 
-export const LocalVideoPlayer: React.FC<LocalVideoPlayerProps> = ({ 
-  playlist, 
+export const LocalVideoPlayer: React.FC<LocalVideoPlayerProps> = ({
+  playlist,
   onVideoChange,
-  className 
+  className,
+  muted = false
 }) => {
   const videoRefA = useRef<HTMLVideoElement>(null);
   const videoRefB = useRef<HTMLVideoElement>(null);
@@ -113,7 +115,7 @@ export const LocalVideoPlayer: React.FC<LocalVideoPlayerProps> = ({
           transition: 'opacity 1s ease-in-out', // クロスフェード時間
           zIndex: activePlayer === 'A' ? 2 : 1, // アクティブな方を上に
         }}
-        muted
+        muted={muted}
         playsInline
         onEnded={handleEnded}
       />
@@ -127,7 +129,7 @@ export const LocalVideoPlayer: React.FC<LocalVideoPlayerProps> = ({
           transition: 'opacity 1s ease-in-out',
           zIndex: activePlayer === 'B' ? 2 : 1,
         }}
-        muted
+        muted={muted}
         playsInline
         onEnded={handleEnded}
       />
