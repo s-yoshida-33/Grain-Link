@@ -1,7 +1,7 @@
 import { normalizeShops } from '../utils/shopData';
 import type { Shop } from '../types/shop';
 import { loadSettings } from '../utils/settings';
-import { logInfo, logError, logWarn } from '../logs/logging';
+import { logInfo, logError } from '../logs/logging';
 
 // REST APIからショップ一覧を取得
 export const fetchShopsFromApi = async (): Promise<Shop[]> => {
