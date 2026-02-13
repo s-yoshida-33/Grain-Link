@@ -35,5 +35,32 @@ contextBridge.exposeInMainWorld('electronAPI', {
 });
 
 contextBridge.exposeInMainWorld('logger', {
-  log: (payload) => ipcRenderer.send('log-message', payload),
+  debug(message, context) {
+    ipcRenderer.send('log-message', {
+      level: 'debug',
+      message,
+      context: context || {}
+    });
+  },
+  info(message, context) {
+    ipcRenderer.send('log-message', {
+      level: 'info',
+      message,
+      context: context || {}
+    });
+  },
+  warn(message, context) {
+    ipcRenderer.send('log-message', {
+      level: 'warn',
+      message,
+      context: context || {}
+    });
+  },
+  error(message, context) {
+    ipcRenderer.send('log-message', {
+      level: 'error',
+      message,
+      context: context || {}
+    });
+  },
 });

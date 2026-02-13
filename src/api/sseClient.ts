@@ -1,6 +1,8 @@
 // SSEクライアントの拡張
 // REST APIとSSEを併用してデータを同期する
 
+import { logInfo, logError } from '../logs/logging';
+
 export type SseConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
 
 type Listener = (data: any) => void;
@@ -60,12 +62,15 @@ class SseClient {
       this.eventSource = new EventSource(this.url);
 
       this.eventSource.onopen = () => {
-        console.log('SSE connected');
+        logInfo('DATA_SYNC', 'SSE connected to API endpoint', { url: this.url });
         this.setStatus('connected');
       };
 
       this.eventSource.onerror = (error) => {
-        console.error('SSE error:', error);
+        logError('DATA_SYNC', 'SSE connection error', {
+          url: this.url,
+          error: String(error)
+        });
         this.setStatus('error');
         this.eventSource?.close();
         this.eventSource = null;
@@ -93,7 +98,9 @@ class SseClient {
             const data = JSON.parse(e.data);
             this.notifyListeners('shops', data);
           } catch (err) {
-            console.error('Failed to parse shops event:', err);
+            logError('DATA_SYNC', 'Failed to parse shops event data', {
+              error: err instanceof Error ? err.message : String(err)
+            });
           }
       });
 
@@ -104,7 +111,10 @@ class SseClient {
       
 
     } catch (e) {
-      console.error('SSE connection failed:', e);
+      logError('DATA_SYNC', 'SSE connection failed', {
+        url: this.url,
+        error: e instanceof Error ? e.message : String(e)
+      });
       this.setStatus('error');
       // 自動再接続
       if (this.reconnectTimeout) clearTimeout(this.reconnectTimeout);

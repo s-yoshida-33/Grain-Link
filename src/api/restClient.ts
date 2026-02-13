@@ -1,6 +1,7 @@
 import { normalizeShops } from '../utils/shopData';
 import type { Shop } from '../types/shop';
 import { loadSettings } from '../utils/settings';
+import { logInfo, logError, logWarn } from '../logs/logging';
 
 // REST APIからショップ一覧を取得
 export const fetchShopsFromApi = async (): Promise<Shop[]> => {
@@ -13,7 +14,7 @@ export const fetchShopsFromApi = async (): Promise<Shop[]> => {
     const baseUrl = settings.apiEndpoint.replace(/\/api\/events$/, '');
     const apiUrl = `${baseUrl}/api/shops`;
 
-    console.log(`Fetching shops from: ${apiUrl}`);
+    logInfo('DATA_SYNC', `Fetching shops from: ${apiUrl}`, { url: apiUrl });
 
     const response = await fetch(apiUrl, {
         method: 'GET',
@@ -30,7 +31,9 @@ export const fetchShopsFromApi = async (): Promise<Shop[]> => {
     const data = await response.json();
     return normalizeShops(data);
   } catch (error) {
-    console.error('Failed to fetch shops from API:', error);
+    logError('DATA_SYNC', 'Failed to fetch shops from API', {
+      error: error instanceof Error ? error.message : String(error)
+    });
     return [];
   }
 };

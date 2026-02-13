@@ -26,10 +26,18 @@ export interface AppInfoAPI {
   getVersion: () => Promise<string>;
 }
 
+export interface LoggerAPI {
+  debug(message: string, context?: any): void;
+  info(message: string, context?: any): void;
+  warn(message: string, context?: any): void;
+  error(message: string, context?: any): void;
+}
+
 declare global {
   interface Window {
     electronAPI: ElectronAPI;
     updater: UpdaterAPI;
     appInfo: AppInfoAPI;
+    logger: LoggerAPI;
   }
 }
