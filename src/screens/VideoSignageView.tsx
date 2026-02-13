@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import type { Shop } from '../types/shop';
 import { useActiveShopByVideo } from '../hooks/useActiveShopByVideo';
 import { useAppSettings } from '../hooks/useAppSettings';
+import { logWarn, logError } from '../logs/logging';
 import { LocalVideoPlayer } from '../components/LocalVideoPlayer';
 import { ShopInfoOverlay } from '../components/ShopInfoOverlay';
 import { ImageHeader } from '../components/ImageHeader';
@@ -27,12 +28,14 @@ export const VideoSignageView: React.FC<VideoSignageViewProps> = ({ shops }) => 
           videos.sort();
           setPlaylist(videos);
         } else {
-          console.warn("Electron API not found. Running in browser mode.");
+          logWarn('LOCAL_VIDEO', 'Electron API not found. Running in browser mode.');
           // ブラウザテスト用にダミーリストを設定（この場合は再生できないがエラー回避）
           setPlaylist([]);
         }
       } catch (error) {
-        console.error("Failed to fetch video list:", error);
+        logError('LOCAL_VIDEO', 'Failed to fetch video list', {
+          error: error instanceof Error ? error.message : String(error)
+        });
       }
     };
 

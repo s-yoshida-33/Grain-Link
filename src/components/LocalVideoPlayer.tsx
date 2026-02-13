@@ -1,4 +1,5 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
+import { logError } from '../logs/logging';
 
 interface LocalVideoPlayerProps {
   playlist: string[];
@@ -46,7 +47,9 @@ export const LocalVideoPlayer: React.FC<LocalVideoPlayerProps> = ({
       try {
         await ref.current.play();
       } catch (e) {
-        console.error(`Player ${player} auto-play failed:`, e);
+        logError('LOCAL_VIDEO', `Player ${player} auto-play failed`, {
+          error: e instanceof Error ? e.message : String(e)
+        });
       }
     }
   }, []);

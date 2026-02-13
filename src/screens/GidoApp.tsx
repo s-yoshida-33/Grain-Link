@@ -5,6 +5,7 @@ import { ShopListView } from './ShopListView';
 import { sseClient } from '../api/sseClient';
 import { fetchShopsFromApi } from '../api/restClient';
 import { normalizeShops, generateMockShops } from '../utils/shopData';
+import { logInfo, logWarn } from '../logs/logging';
 import type { Shop } from '../types/shop';
 
 export const GidoApp: React.FC = () => {
@@ -17,22 +18,24 @@ export const GidoApp: React.FC = () => {
   const loadShops = useCallback(async (providedShops?: Shop[]) => {
     // 1. SSEからデータ(providedShops)が渡された場合はそれを使う
     if (providedShops && providedShops.length > 0) {
-      console.log('Using shops data provided via SSE');
+      logInfo('DATA_SYNC', 'Using shops data provided via SSE', {
+        count: providedShops.length
+      });
       setShops(providedShops);
       return;
     }
-  
+
     // 2. データがない場合（初期表示やupdate通知時）はREST APIを取りに行く
-    console.log('Fetching shops from REST API...');
+    logInfo('DATA_SYNC', 'Fetching shops from REST API...');
     const apiData = await fetchShopsFromApi();
-    
+
     // API取得失敗時はモックデータなどを維持するか、空にするかは要件次第
     // ここでは取得できた場合のみ更新
     if (apiData.length > 0) {
         setShops(apiData);
     } else if (shops.length === 0) {
         // 初回ロード失敗時にのみモックを使うなどのフォールバックも検討可能
-        console.warn('REST API returned 0 shops');
+        logWarn('DATA_SYNC', 'REST API returned 0 shops');
     }
   }, []); // shopsを依存配列に入れるとループの恐れがあるので空に
 
@@ -51,19 +54,21 @@ export const GidoApp: React.FC = () => {
       // SSE接続状態ログ
       sseClient.on('status_change', ({ status }) => {
         // setIsSseConnected(status === 'connected');
-        console.log('SSE Status:', status);
+        logInfo('DATA_SYNC', 'SSE Status changed', { status });
       });
 
       // 'shops' イベント: JSONデータを直接反映
       sseClient.on('shops', (data) => {
-        console.log('Received "shops" event via SSE');
+        logInfo('DATA_SYNC', 'Received "shops" event via SSE', {
+          dataSize: JSON.stringify(data).length
+        });
         const normalized = normalizeShops(data);
         loadShops(normalized);
       });
 
       // 'update' イベント: REST API再取得
       sseClient.on('update', () => {
-         console.log('Received "update" event via SSE - Reloading from API');
+         logInfo('DATA_SYNC', 'Received "update" event via SSE - Reloading from API');
          loadShops();
       });
       
