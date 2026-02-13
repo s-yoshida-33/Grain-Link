@@ -102,6 +102,34 @@ const createMenuTemplate = () => {
         { role: 'toggleFullscreen', label: 'Toggle Fullscreen' },
         { type: 'separator' },
         {
+          label: 'Display Mode',
+          submenu: [
+            {
+              label: 'Video',
+              type: 'radio',
+              checked: defaultSettings.appMode === 'VIDEO_AD',
+              click: () => {
+                const updated = saveSettings({ appMode: 'VIDEO_AD' });
+                if (mainWindow && !mainWindow.isDestroyed()) {
+                  mainWindow.webContents.send('settings-updated', updated);
+                }
+              },
+            },
+            {
+              label: 'Shop List',
+              type: 'radio',
+              checked: defaultSettings.appMode === 'SHOP_LIST',
+              click: () => {
+                const updated = saveSettings({ appMode: 'SHOP_LIST' });
+                if (mainWindow && !mainWindow.isDestroyed()) {
+                  mainWindow.webContents.send('settings-updated', updated);
+                }
+              },
+            },
+          ],
+        },
+        { type: 'separator' },
+        {
           label: 'Audio',
           submenu: [
             {
