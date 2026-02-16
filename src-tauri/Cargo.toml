@@ -1,0 +1,22 @@
+[package]
+name = "grain-link"
+version = "0.0.0"
+description = "Grain Link Tauri application"
+authors = ["Toei Techno International Inc."]
+edition = "2021"
+rust-version = "1.70"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-fs = "2"
+tauri-plugin-process = "2"
+tauri-plugin-dialog = "2"
+
+[profile.release]
+codegen-units = 1
+lto = true
+strip = true
+opt-level = "z"

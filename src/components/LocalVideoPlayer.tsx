@@ -1,4 +1,5 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
+import { convertFileSrc } from '@tauri-apps/api/core';
 import { logError } from '../logs/logging';
 
 interface LocalVideoPlayerProps {
@@ -35,7 +36,7 @@ export const LocalVideoPlayer: React.FC<LocalVideoPlayerProps> = ({
     const ref = player === 'A' ? videoRefA : videoRefB;
 
     if (ref.current) {
-      ref.current.src = `file://${file}`;
+      ref.current.src = convertFileSrc(file);
       ref.current.load();
     }
   }, [playlist]);

@@ -1,24 +1,25 @@
+import { BaseDirectory, exists, readTextFile } from '@tauri-apps/plugin-fs';
 import type { AppSettings } from '../types/settings';
 import defaultSettings from '../config/default-settings.json';
 import { logError } from '../logs/logging';
 
-// 設定読み込み関数
-// ElectronのIPC経由でローカルの設定ファイルを読み込む
+const SETTINGS_FILE = 'settings.json';
+
+// AppLocalData 配下の settings.json を読み込み、デフォルトとマージする
 export const loadSettings = async (): Promise<AppSettings> => {
-  if (window.electronAPI && window.electronAPI.getSettings) {
-    try {
-      const settings = await window.electronAPI.getSettings();
-      // デフォルト値とマージして返す（不足項目を補完）
-      return { ...defaultSettings, ...settings } as AppSettings;
-    } catch (error) {
-      logError('CONFIG', 'Failed to load settings via IPC', {
-        error: error instanceof Error ? error.message : String(error)
-      });
-      return defaultSettings as AppSettings;
+  try {
+    const fileExists = await exists(SETTINGS_FILE, { baseDir: BaseDirectory.AppLocalData });
+
+    if (fileExists) {
+      const content = await readTextFile(SETTINGS_FILE, { baseDir: BaseDirectory.AppLocalData });
+      const parsed = JSON.parse(content);
+      return { ...defaultSettings, ...parsed } as AppSettings;
     }
+  } catch (error) {
+    logError('CONFIG', 'Failed to load local settings', {
+      error: error instanceof Error ? error.message : String(error)
+    });
   }
 
-  // 開発環境（ブラウザ）などのフォールバック
-  // console.log('Loading settings (fallback)...', defaultSettings);
   return defaultSettings as AppSettings;
 };

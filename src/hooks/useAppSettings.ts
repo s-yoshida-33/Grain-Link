@@ -7,17 +7,17 @@ export const useAppSettings = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let mounted = true;
+
     loadSettings().then((config) => {
+      if (!mounted) return;
       setSettings(config);
       setLoading(false);
     });
 
-    // メインプロセスからの設定更新イベントをリッスン
-    if (window.electronAPI && window.electronAPI.onSettingsUpdate) {
-      window.electronAPI.onSettingsUpdate((updatedSettings) => {
-        setSettings(updatedSettings);
-      });
-    }
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   return { settings, loading };

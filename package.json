@@ -14,82 +14,29 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "electron:dev": "cross-env NODE_ENV=development concurrently \"npm:dev\" \"npm:electron:start\"",
-    "electron:start": "wait-on http://localhost:5173 && electron .",
-    "electron:build": "npm run build && electron-builder",
     "icon:gen": "magick -background none -density 1024 src/assets/icon.svg -define icon:auto-resize=256,128,64,48,32,16 -write src/assets/icon.ico build/icon.ico",
-    "zip:media": "node scripts/zip-media.cjs"
-  },
-  "main": "electron/main.cjs",
-  "build": {
-    "appId": "com.tti.grain-link",
-    "productName": "Grain Link",
-    "copyright": "© 2026 Toei Techno International Inc.",
-    "publish": {
-      "provider": "github",
-      "owner": "s-yoshida-33",
-      "repo": "Grain-Link"
-    },
-    "directories": {
-      "output": "release",
-      "buildResources": "build"
-    },
-    "files": [
-      "dist/**/*",
-      "electron/**/*",
-      "package.json"
-    ],
-    "extraResources": [
-      {
-        "from": "src/config/default-settings.json",
-        "to": "default-settings.json"
-      }
-    ],
-    "win": {
-      "target": "nsis",
-      "artifactName": "GrainLinkSetup-${arch}-${version}.exe",
-      "icon": "build/icon.ico"
-    },
-    "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": false,
-      "createStartMenuShortcut": false,
-      "shortcutName": "Grain Link",
-      "deleteAppDataOnUninstall": false,
-      "include": "build/installer.nsh",
-      "warningsAsErrors": false,
-      "runAfterFinish": true,
-      "allowElevation": false,
-      "perMachine": false,
-      "language": "1041",
-      "installerLanguages": [
-        "ja_JP"
-      ],
-      "menuCategory": true,
-      "uninstallDisplayName": "Grain Link アンインストール",
-      "unicode": true,
-      "differentialPackage": false
-    }
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build",
+    "desktop:dev": "tauri dev",
+    "desktop:build": "tauri build"
   },
   "dependencies": {
-    "adm-zip": "^0.5.16",
-    "electron-log": "^5.4.3",
-    "electron-updater": "^6.6.2",
+    "@tauri-apps/plugin-dialog": "^2.0.0",
+    "@tauri-apps/plugin-fs": "^2.0.0",
+    "@tauri-apps/plugin-process": "^2.0.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
     "@tailwindcss/vite": "^4.1.17",
+    "@tauri-apps/api": "^2.10.1",
+    "@tauri-apps/cli": "^2.10.0",
     "@types/react": "^19.2.2",
     "@types/react-dom": "^19.2.2",
     "@vitejs/plugin-react": "^5.1.0",
     "autoprefixer": "^10.4.22",
-    "concurrently": "^9.1.2",
-    "cross-env": "^7.0.3",
-    "electron": "^40.2.1",
-    "electron-builder": "^26.0.12",
     "eslint": "^9.39.1",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.24",
@@ -98,7 +45,6 @@
     "tailwindcss": "^4.1.17",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.46.3",
-    "vite": "^7.2.2",
-    "wait-on": "^8.0.1"
+    "vite": "^7.2.2"
   }
 }
