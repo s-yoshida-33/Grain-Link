@@ -4,7 +4,7 @@ import { appLocalDataDir, join } from '@tauri-apps/api/path';
 import type { Shop } from '../types/shop';
 import { useActiveShopByVideo } from '../hooks/useActiveShopByVideo';
 import { useAppSettings } from '../hooks/useAppSettings';
-import { logError } from '../logs/logging';
+import { logError, logWarn } from '../logs/logging';
 import { LocalVideoPlayer } from '../components/LocalVideoPlayer';
 import { ShopInfoOverlay } from '../components/ShopInfoOverlay';
 import { ImageHeader } from '../components/ImageHeader';
@@ -23,35 +23,44 @@ export const VideoSignageView: React.FC<VideoSignageViewProps> = ({ shops }) => 
   useEffect(() => {
     const fetchVideos = async () => {
       try {
-        const mallId = settings?.mallId || 'sakaikitahanada';
-        const devVideoDir = `tmp/${mallId}/assets/videos`;
-        const baseDir = await appLocalDataDir();
-
-        // 優先順: settings.videoDirectory(絶対/相対) → Dev中のtmp配下 → AppLocalData/videos
-        let entries: Awaited<ReturnType<typeof readDir>>;
+        // ベースとなるディレクトリの絶対パスを決定
+        let targetDirPath = "";
         if (settings?.videoDirectory) {
-          entries = await readDir(settings.videoDirectory);
-        } else if (import.meta.env.DEV) {
-          entries = await readDir(devVideoDir);
+          // 設定で指定がある場合（絶対パス前提）
+          targetDirPath = settings.videoDirectory;
         } else {
+          const appDataDir = await appLocalDataDir();
+          targetDirPath = await join(appDataDir, 'videos');
+        }
+
+        // ディレクトリ読み込み（絶対パス指定）
+        let entries: Awaited<ReturnType<typeof readDir>>;
+        try {
+          entries = await readDir(targetDirPath);
+        } catch (e) {
+          // フォールバック: AppLocalData/videos を BaseDirectory 指定で読む
           entries = await readDir('videos', { baseDir: BaseDirectory.AppLocalData });
+          logWarn('LOCAL_VIDEO', 'Fallback to AppLocalData/videos after readDir error', {
+            targetDirPath,
+            error: e instanceof Error ? e.message : String(e)
+          });
         }
 
         const videoFiles = await Promise.all(
           entries
             .filter((entry) => entry.isFile && entry.name && /\.(mp4|webm|mov)$/i.test(entry.name))
             .map(async (entry) => {
-              // entry.path が無いケースに備え、読んだ場所に応じて join で補完
-              const entryPath = (entry as { path?: string }).path;
-              if (entryPath) return entryPath;
-              if (settings?.videoDirectory) return await join(settings.videoDirectory, entry.name as string);
-              if (import.meta.env.DEV) return await join(devVideoDir, entry.name as string);
-              return await join(baseDir, 'videos', entry.name as string);
+              // 確実に絶対パスへ結合
+              return await join(targetDirPath, entry.name as string);
             })
         );
 
         videoFiles.sort();
         setPlaylist(videoFiles);
+
+        if (videoFiles.length === 0) {
+          logWarn('LOCAL_VIDEO', 'No videos found in directory', { dir: targetDirPath });
+        }
       } catch (error) {
         logError('LOCAL_VIDEO', 'Failed to fetch video list', {
           error: error instanceof Error ? error.message : String(error)
@@ -61,7 +70,7 @@ export const VideoSignageView: React.FC<VideoSignageViewProps> = ({ shops }) => 
     };
 
     fetchVideos();
-  }, []);
+  }, [settings]);
 
   return (
     <div className="flex flex-col w-full h-full overflow-hidden">

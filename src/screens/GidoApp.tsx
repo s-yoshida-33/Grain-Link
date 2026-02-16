@@ -62,7 +62,7 @@ export const GidoApp: React.FC = () => {
         logInfo('DATA_SYNC', 'Received "shops" event via SSE', {
           dataSize: JSON.stringify(data).length
         });
-        const normalized = normalizeShops(data);
+        const normalized = normalizeShops(data, settings.apiEndpoint);
         loadShops(normalized);
       });
 

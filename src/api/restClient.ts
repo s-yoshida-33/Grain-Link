@@ -29,7 +29,7 @@ export const fetchShopsFromApi = async (): Promise<Shop[]> => {
     }
 
     const data = await response.json();
-    return normalizeShops(data);
+    return normalizeShops(data, settings.apiEndpoint);
   } catch (error) {
     logError('DATA_SYNC', 'Failed to fetch shops from API', {
       error: error instanceof Error ? error.message : String(error)
