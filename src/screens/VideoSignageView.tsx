@@ -23,13 +23,31 @@ export const VideoSignageView: React.FC<VideoSignageViewProps> = ({ shops }) => 
   useEffect(() => {
     const fetchVideos = async () => {
       try {
+        const mallId = settings?.mallId || 'sakaikitahanada';
+        const devVideoDir = `tmp/${mallId}/assets/videos`;
         const baseDir = await appLocalDataDir();
-        const entries = await readDir('videos', { baseDir: BaseDirectory.AppLocalData });
+
+        // 優先順: settings.videoDirectory(絶対/相対) → Dev中のtmp配下 → AppLocalData/videos
+        let entries: Awaited<ReturnType<typeof readDir>>;
+        if (settings?.videoDirectory) {
+          entries = await readDir(settings.videoDirectory);
+        } else if (import.meta.env.DEV) {
+          entries = await readDir(devVideoDir);
+        } else {
+          entries = await readDir('videos', { baseDir: BaseDirectory.AppLocalData });
+        }
 
         const videoFiles = await Promise.all(
           entries
             .filter((entry) => entry.isFile && entry.name && /\.(mp4|webm|mov)$/i.test(entry.name))
-            .map(async (entry) => entry.path ?? await join(baseDir, 'videos', entry.name as string))
+            .map(async (entry) => {
+              // entry.path が無いケースに備え、読んだ場所に応じて join で補完
+              const entryPath = (entry as { path?: string }).path;
+              if (entryPath) return entryPath;
+              if (settings?.videoDirectory) return await join(settings.videoDirectory, entry.name as string);
+              if (import.meta.env.DEV) return await join(devVideoDir, entry.name as string);
+              return await join(baseDir, 'videos', entry.name as string);
+            })
         );
 
         videoFiles.sort();

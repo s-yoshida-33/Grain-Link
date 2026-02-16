@@ -13,7 +13,7 @@ export const loadSettings = async (): Promise<AppSettings> => {
     if (fileExists) {
       const content = await readTextFile(SETTINGS_FILE, { baseDir: BaseDirectory.AppLocalData });
       const parsed = JSON.parse(content);
-      return { ...defaultSettings, ...parsed } as AppSettings;
+      return applyRuntimeDefaults({ ...defaultSettings, ...parsed } as AppSettings);
     }
   } catch (error) {
     logError('CONFIG', 'Failed to load local settings', {
@@ -21,5 +21,21 @@ export const loadSettings = async (): Promise<AppSettings> => {
     });
   }
 
-  return defaultSettings as AppSettings;
+  return applyRuntimeDefaults(defaultSettings as AppSettings);
+};
+
+// Dev 環境では Vite のプロキシを活用するため、API エンドポイントを相対パスに差し替える。
+// 本番ビルドでは設定値をそのまま使う。
+const applyRuntimeDefaults = (settings: AppSettings): AppSettings => {
+  if (import.meta.env.DEV) {
+    const mallId = settings.mallId || 'sakaikitahanada';
+    return {
+      ...settings,
+      apiEndpoint: '/api/events',
+      // Dev ではリポジトリ直下の tmp/<mallId>/assets/videos をデフォルト参照
+      videoDirectory: settings.videoDirectory || `tmp/${mallId}/assets/videos`,
+    };
+  }
+
+  return settings;
 };
