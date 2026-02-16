@@ -27,7 +27,7 @@ export const ShopCard: React.FC<ShopCardProps> = ({ shop }) => {
   return (
     <div className="w-full h-full bg-[#F8F5E4] rounded-[15px] overflow-hidden border-[3px] border-[#BF995B] flex flex-col">
       {/* 店舗画像エリア (上半分程度を想定) */}
-      <div className="h-[220px] w-full bg-white relative">
+      <div className="h-55 w-full bg-white relative">
         {shop.imageUrl ? (
           <img 
             src={shop.imageUrl} 
@@ -43,9 +43,9 @@ export const ShopCard: React.FC<ShopCardProps> = ({ shop }) => {
 
       {/* 店舗情報エリア */}
       <div className="flex-1 flex flex-col justify-center items-start">
-        <div className="flex items-center gap-2 mb-1 ml-[8px] pt-1">
+        <div className="flex items-center gap-2 mb-1 ml-2 pt-1">
           {shop.number && (
-            <span className="text-[16px] font-bold text-white bg-[#F08300] w-[60px] inline-block text-center py-1 rounded-[3px]">
+            <span className="text-[16px] font-bold text-white bg-[#F08300] w-15 inline-block text-center py-1 rounded-[3px]">
               {shop.number}
             </span>
           )}
@@ -55,9 +55,9 @@ export const ShopCard: React.FC<ShopCardProps> = ({ shop }) => {
             </span>
           )}
         </div>
-        <h3 className="text-[24px] font-bold text-brand-brown ml-[8px]">{formatShopName(shop.name)}</h3>
+        <h3 className="text-[24px] font-bold text-brand-brown ml-2">{formatShopName(shop.name)}</h3>
         {shop.openTime && formatLastOrder(shop.openTime) && (
-          <p className="text-[16px] font-bold text-brand-brown ml-[8px] mt-[20px]">
+          <p className="text-[16px] font-bold text-brand-brown ml-2 mt-5">
             {formatLastOrder(shop.openTime)}
           </p>
         )}

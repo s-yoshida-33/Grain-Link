@@ -28,12 +28,9 @@ export const loadSettings = async (): Promise<AppSettings> => {
 // 本番ビルドでは設定値をそのまま使う。
 const applyRuntimeDefaults = (settings: AppSettings): AppSettings => {
   if (import.meta.env.DEV) {
-    const mallId = settings.mallId || 'sakaikitahanada';
     return {
       ...settings,
       apiEndpoint: '/api/events',
-      // Dev ではリポジトリ直下の tmp/<mallId>/assets/videos をデフォルト参照
-      videoDirectory: settings.videoDirectory || `tmp/${mallId}/assets/videos`,
     };
   }
 

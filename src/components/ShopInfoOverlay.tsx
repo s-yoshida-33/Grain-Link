@@ -49,7 +49,7 @@ export const ShopInfoOverlay: React.FC<ShopInfoOverlayProps> = ({ shop }) => {
 
     return (
     <div 
-      className="absolute top-0 left-0 w-full h-full flex flex-col items-center justify-start pt-[60px] p-8 text-center text-[#4b2c20] transition-opacity duration-1000 ease-in-out"
+      className="absolute top-0 left-0 w-full h-full flex flex-col items-center justify-start pt-15 p-8 text-center text-[#4b2c20] transition-opacity duration-1000 ease-in-out"
       style={{ ...containerStyle, opacity: isActive ? 1 : 0, zIndex: isActive ? 2 : 1 }}
     >
       {!targetShop ? (
