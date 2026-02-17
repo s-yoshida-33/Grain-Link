@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { readDir } from '@tauri-apps/plugin-fs';
 import { appLocalDataDir, appDataDir, join } from '@tauri-apps/api/path';
+import { invoke } from '@tauri-apps/api/core';
 import type { Shop } from '../types/shop';
 import { useActiveShopByVideo } from '../hooks/useActiveShopByVideo';
 import { useAppSettings } from '../hooks/useAppSettings';
@@ -126,6 +127,19 @@ export const VideoSignageView: React.FC<VideoSignageViewProps> = ({ shops }) => 
 
     fetchVideos();
   }, [settings]);
+
+  // ビデオディレクトリが確定したら、Rustサーバーに通知
+  useEffect(() => {
+    if (resolvedVideoDir) {
+      invoke<void>('set_video_dir', { dir: resolvedVideoDir })
+        .then(() => {
+          logWarn('LOCAL_VIDEO', 'Video directory set on server', { dir: resolvedVideoDir });
+        })
+        .catch((error) => {
+          logError('LOCAL_VIDEO', 'Failed to set video dir on server', { error: String(error) });
+        });
+    }
+  }, [resolvedVideoDir]);
 
   return (
     <div className="flex flex-col w-full h-full overflow-hidden">
