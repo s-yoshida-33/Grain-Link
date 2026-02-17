@@ -151,9 +151,9 @@ export const VideoSignageView: React.FC<VideoSignageViewProps> = ({ shops }) => 
   }, [settings]);
 
   return (
-    <div className="flex flex-col w-full h-full overflow-hidden bg-black">
+    <div className="flex flex-col w-full h-full overflow-hidden bg-white">
       {/* 上：店舗イメージ画像 */}
-      <div style={{ height: '31.6%' }} className="shrink-0 bg-black">
+      <div style={{ height: '31.6%' }} className="shrink-0 bg-white">
         <ImageHeader imageUrl={activeShop?.imageUrl} />
       </div>
 
@@ -169,7 +169,7 @@ export const VideoSignageView: React.FC<VideoSignageViewProps> = ({ shops }) => 
           backgroundSize: 'cover',
           backgroundPosition: 'center',
         }} 
-        className="shrink-0 bg-black"
+        className="shrink-0 bg-white"
       >
         <LocalVideoPlayer
           playlist={playlist}
