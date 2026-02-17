@@ -26,16 +26,20 @@ export const ShopListView: React.FC<ShopListViewProps> = ({ shops, gridConfig })
   const displaySlots = useMemo(() => {
     // 1. 条件に合致する店舗を抽出
     const filteredShops = shops.filter(shop => 
-      // APIから取得するデータ構造に依存するが、
-      // ここではShop型にgenre, areaが含まれていると仮定してフィルタリング
-      // 現状のShop型定義にはないので後ほど型定義を拡張する必要がある
       (shop as any).genre === TARGET_GENRE && 
       (shop as any).area === TARGET_AREA
     ).sort((a, b) => {
-      // number: F-1から順に並ぶようにソート (自然順ソート)
       const numA = a.number || "";
       const numB = b.number || "";
       return numA.localeCompare(numB, undefined, { numeric: true });
+    });
+
+    console.log('[DEBUG] ShopListView filter:', {
+      totalShops: shops.length,
+      filteredShops: filteredShops.length,
+      targetGenre: TARGET_GENRE,
+      targetArea: TARGET_AREA,
+      sampleShop: shops[0] ? { genre: (shops[0] as any).genre, area: (shops[0] as any).area } : null
     });
 
     // 2. 最大12枠分の配列を作成

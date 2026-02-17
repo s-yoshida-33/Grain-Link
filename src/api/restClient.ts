@@ -1,35 +1,36 @@
+import { invoke } from '@tauri-apps/api/core';
 import { normalizeShops } from '../utils/shopData';
 import type { Shop } from '../types/shop';
 import { loadSettings } from '../utils/settings';
 import { logInfo, logError } from '../logs/logging';
 
-// REST APIからショップ一覧を取得
+// REST APIからショップ一覧を取得（Tauri経由でCORS回避）
 export const fetchShopsFromApi = async (): Promise<Shop[]> => {
   try {
     const settings = await loadSettings();
-    // settings.apiEndpoint は "http://localhost:8090/api/events"
-    // REST APIは "http://localhost:8090/api/shops" を想定
     
-    // apiEndpointからベースURLを抽出 (例: /api/events を除去)
     const baseUrl = settings.apiEndpoint.replace(/\/api\/events$/, '');
     const apiUrl = `${baseUrl}/api/shops`;
 
     logInfo('DATA_SYNC', `Fetching shops from: ${apiUrl}`, { url: apiUrl });
 
-    const response = await fetch(apiUrl, {
-        method: 'GET',
-        headers: {
-            'Cache-Control': 'no-cache',
-            'Pragma': 'no-cache'
-        }
-    });
+    const response = await invoke<{ status: number; body: string }>('fetch_shops_proxy', { url: apiUrl });
 
-    if (!response.ok) {
+    if (response.status !== 200) {
       throw new Error(`API error: ${response.status}`);
     }
 
-    const data = await response.json();
-    return normalizeShops(data, settings.apiEndpoint);
+    const data = JSON.parse(response.body);
+    const shops = normalizeShops(data, settings.apiEndpoint);
+    logInfo('DATA_SYNC', `REST API returned ${shops.length} shops`);
+    
+    // デバッグ: 最初の3つのショップの画像URLをログ出力
+    if (shops.length > 0) {
+      console.log('[DEBUG] First shop imageUrl:', shops[0].imageUrl);
+      console.log('[DEBUG] First shop object:', JSON.stringify(shops[0], null, 2));
+    }
+    
+    return shops;
   } catch (error) {
     logError('DATA_SYNC', 'Failed to fetch shops from API', {
       error: error instanceof Error ? error.message : String(error)

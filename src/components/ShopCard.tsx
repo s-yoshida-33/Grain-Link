@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import type { Shop } from '../types/shop';
 import { formatShopName, formatGenreMemo, formatLastOrder } from '../utils/format';
 import { useAppSettings } from '../hooks/useAppSettings';
+import { invoke } from '@tauri-apps/api/core';
+import { logError } from '../logs/logging';
 
 interface ShopCardProps {
   shop?: Shop;
@@ -11,6 +13,30 @@ export const ShopCard: React.FC<ShopCardProps> = ({ shop }) => {
   const { settings } = useAppSettings();
   const mallId = settings?.mallId || 'sakaikitahanada';
   const comingSoonImage = `./assets/malls/${mallId}/coming-soon.webp`;
+  
+  const [imageUrl, setImageUrl] = useState<string>("");
+
+  // 画像URLを処理（ローカルファイルパスの場合は Data URL に変換）
+  useEffect(() => {
+    if (!shop?.imageUrl) {
+      setImageUrl("");
+      return;
+    }
+
+    if (shop.imageUrl.startsWith('__LOCAL_FILE__:')) {
+      // ローカルファイルパス: Tauri コマンドで Data URL に変換
+      const filePath = shop.imageUrl.substring('__LOCAL_FILE__:'.length);
+      invoke<string>('load_image_file', { filePath })
+        .then(dataUrl => setImageUrl(dataUrl))
+        .catch(error => {
+          logError('SHOP_CARD', 'Failed to load image file', { error: String(error), filePath });
+          setImageUrl("");
+        });
+    } else {
+      // 通常の URL
+      setImageUrl(shop.imageUrl);
+    }
+  }, [shop?.imageUrl]);
 
   if (!shop) {
     return (
@@ -28,9 +54,9 @@ export const ShopCard: React.FC<ShopCardProps> = ({ shop }) => {
     <div className="w-full h-full bg-[#F8F5E4] rounded-[15px] overflow-hidden border-[3px] border-[#BF995B] flex flex-col">
       {/* 店舗画像エリア (上半分程度を想定) */}
       <div className="h-55 w-full bg-white relative">
-        {shop.imageUrl ? (
+        {imageUrl ? (
           <img 
-            src={shop.imageUrl} 
+            src={imageUrl} 
             alt={shop.name} 
             className="w-full h-full object-cover"
           />
