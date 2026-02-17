@@ -18,20 +18,14 @@ export const LocalVideoPlayer: React.FC<LocalVideoPlayerProps> = ({
   const videoRefA = useRef<HTMLVideoElement>(null);
   const videoRefB = useRef<HTMLVideoElement>(null);
   
-  // 現在アクティブなプレイヤー ('A' | 'B')
   const [activePlayer, setActivePlayer] = useState<'A' | 'B'>('A');
-  
-  // 現在のプレイリストインデックス
   const [currentIndex, setCurrentIndex] = useState(0);
-
-  // 初期化完了フラグ
   const [isInitialized, setIsInitialized] = useState(false);
+  const [isFading, setIsFading] = useState(false);
 
-  // 非アクティブなプレイヤーを取得
   const getInactivePlayer = useCallback((active: 'A' | 'B'): 'A' | 'B' => active === 'A' ? 'B' : 'A', []);
 
-  // 指定されたプレイヤーに動画をセットして準備する関数
-  const preparePlayer = useCallback((player: 'A' | 'B', fileIndex: number) => {
+  const preparePlayer = useCallback((player: 'A' | 'B', fileIndex: number, autoPlay: boolean = false) => {
     if (playlist.length === 0) return;
     
     const index = fileIndex % playlist.length;
@@ -40,74 +34,53 @@ export const LocalVideoPlayer: React.FC<LocalVideoPlayerProps> = ({
 
     if (ref.current) {
       try {
-        // Tauri の convertFileSrc を使用してローカルファイルを安全にアクセス
         const videoUrl = convertFileSrc(filePath);
         const filename = filePath.split(/[/\\]/).pop() || '';
         
         ref.current.src = videoUrl;
+        ref.current.currentTime = 0; // 時間をリセット
         ref.current.load();
+        
+        // 準備ができたら再生を試みる
+        if (autoPlay) {
+          const timer = setTimeout(() => {
+            if (ref.current) {
+              ref.current.play().catch(e => {
+                logWarn('LOCAL_VIDEO', `Auto-play failed for ${player}`, {
+                  error: e.message
+                });
+              });
+            }
+          }, 50);
+          return () => clearTimeout(timer);
+        }
         
         logWarn('LOCAL_VIDEO', `Video prepared for player ${player}`, {
           fileIndex: index,
-          filePath,
           filename,
-          videoUrl,
+          autoPlay,
         });
       } catch (error) {
         logError('LOCAL_VIDEO', `Failed to prepare player ${player}`, {
           error: error instanceof Error ? error.message : String(error),
-          filePath,
         });
       }
     }
   }, [playlist]);
 
-  // 動画再生を開始する関数
-  const playVideo = useCallback(async (player: 'A' | 'B') => {
-    const ref = player === 'A' ? videoRefA : videoRefB;
-    if (ref.current) {
-      try {
-        // autoPlayが機能しない場合に備えて、明示的に再生を試みる
-        const playPromise = ref.current.play();
-        if (playPromise !== undefined) {
-          playPromise.catch(error => {
-            logWarn('LOCAL_VIDEO', `Player ${player} play() failed, will retry`, {
-              error: error.message || String(error)
-            });
-            // 自動再生ポリシー失敗時は、次のユーザーアクション待つか、ミューテッド属性を確認
-            // ミューテッド状態で再度試行
-            if (ref.current && ref.current.muted) {
-              ref.current.play().catch(e => {
-                logError('LOCAL_VIDEO', `Player ${player} play() failed twice`, {
-                  error: e instanceof Error ? e.message : String(e)
-                });
-              });
-            }
-          });
-        }
-      } catch (e) {
-        logError('LOCAL_VIDEO', `Player ${player} auto-play error`, {
-          error: e instanceof Error ? e.message : String(e)
-        });
-      }
-    }
-  }, []);
-
   // 初期化処理
   useEffect(() => {
     if (playlist.length > 0 && !isInitialized) {
-      // 最初の動画をAにセットして再生
-      preparePlayer('A', 0);
-      playVideo('A');
+      // 最初の動画をAにセットして再生開始
+      preparePlayer('A', 0, true);
       
-      // 次の動画をBにセットしておく（プリロード）
+      // 次の動画をBにプリロード（まだ再生しない）
       if (playlist.length > 1) {
-        preparePlayer('B', 1);
+        preparePlayer('B', 1, false);
       } else {
-        preparePlayer('B', 0); // 1曲ループの場合
+        preparePlayer('B', 0, false);
       }
 
-      // 通知
       const currentFile = playlist[0];
       const fileName = currentFile.split(/[/\\]/).pop() || currentFile;
       onVideoChange(fileName);
@@ -119,67 +92,83 @@ export const LocalVideoPlayer: React.FC<LocalVideoPlayerProps> = ({
 
       setIsInitialized(true);
     }
-  }, [playlist, isInitialized, preparePlayer, playVideo, onVideoChange]);
+  }, [playlist, isInitialized, preparePlayer, onVideoChange]);
 
   // 動画終了ハンドラ
   const handleEnded = useCallback(() => {
-    if (playlist.length === 0) return;
+    if (playlist.length === 0 || isFading) return;
 
     const nextIndex = (currentIndex + 1) % playlist.length;
     const nextPlayer = getInactivePlayer(activePlayer);
     const inactivePlayer = getInactivePlayer(nextPlayer);
     const futureIndex = (nextIndex + 1) % playlist.length;
 
-    logWarn('LOCAL_VIDEO', 'Video ended, transitioning', {
-      currentIndex,
+    logWarn('LOCAL_VIDEO', 'Video ended, starting fade transition', {
+      from: activePlayer,
+      to: nextPlayer,
       nextIndex,
-      activePlayer,
-      nextPlayer,
     });
 
-    // 1. 状態を更新: 次のプレイヤーをアクティブに
+    setIsFading(true);
+
+    // 1. フェード開始：activePlayer を切り替え + 画像・テキスト通知を同時実行
     setActivePlayer(nextPlayer);
     setCurrentIndex(nextIndex);
-
-    // 2. 通知
+    
     const nextFile = playlist[nextIndex];
     const fileName = nextFile.split(/[/\\]/).pop() || nextFile;
     onVideoChange(fileName);
+    logWarn('LOCAL_VIDEO', 'Video change notified at fade start', { 
+      nextIndex, 
+      fileName,
+    });
 
-    // 3. 次のプレイヤーで再生開始 (すでにロード済みのはず)
-    playVideo(nextPlayer);
+    // 2. 次のプレイヤーを再生開始（フェード中に）
+    const playTimer = setTimeout(() => {
+      const ref = nextPlayer === 'A' ? videoRefA : videoRefB;
+      if (ref.current) {
+        ref.current.play().catch(e => {
+          logWarn('LOCAL_VIDEO', `Play failed for ${nextPlayer}`, {
+            error: e.message
+          });
+        });
+      }
+    }, 50);
 
-    // 4. バックグラウンドで「さらに次の動画」をプリロード
-    // クロスフェード中（1秒間）に準備する
-    setTimeout(() => {
-      preparePlayer(inactivePlayer, futureIndex);
-      logWarn('LOCAL_VIDEO', 'Next video preloaded', { 
+    // 3. フェード完了後：今フェードアウトしたプレイヤーに次の動画をプリロード
+    const prepareTimer = setTimeout(() => {
+      preparePlayer(inactivePlayer, futureIndex, false);
+      logWarn('LOCAL_VIDEO', 'Next video preloaded for transition', { 
         futureIndex, 
         player: inactivePlayer,
-        filePath: playlist[futureIndex],
       });
-    }, 500); // クロスフェード中盤で準備開始
+      setIsFading(false);
+    }, 1000);
 
-  }, [currentIndex, playlist, activePlayer, playVideo, preparePlayer, onVideoChange, getInactivePlayer]);
+    return () => {
+      clearTimeout(playTimer);
+      clearTimeout(prepareTimer);
+    };
+
+  }, [currentIndex, playlist, activePlayer, isFading, preparePlayer, onVideoChange, getInactivePlayer]);
 
   if (playlist.length === 0) {
     return <div className="flex items-center justify-center h-full bg-black text-white">No Videos</div>;
   }
 
   return (
-    <div className={`relative w-full h-full ${className}`}>
+    <div className={`relative w-full h-full bg-black ${className}`}>
       {/* Video Player A */}
       <video
         ref={videoRefA}
         className="absolute top-0 left-0 w-full h-full object-cover"
         style={{
           opacity: activePlayer === 'A' ? 1 : 0,
-          transition: 'opacity 1s ease-in-out', // クロスフェード時間
-          zIndex: activePlayer === 'A' ? 2 : 1, // アクティブな方を上に
+          transition: 'opacity 1s ease-in-out',
+          zIndex: activePlayer === 'A' ? 2 : 1,
         }}
         muted={muted}
         playsInline
-        autoPlay
         onEnded={handleEnded}
       />
       
@@ -194,7 +183,6 @@ export const LocalVideoPlayer: React.FC<LocalVideoPlayerProps> = ({
         }}
         muted={muted}
         playsInline
-        autoPlay
         onEnded={handleEnded}
       />
     </div>

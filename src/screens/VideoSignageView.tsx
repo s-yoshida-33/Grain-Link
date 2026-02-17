@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { readDir } from '@tauri-apps/plugin-fs';
 import { appLocalDataDir, join } from '@tauri-apps/api/path';
+import { convertFileSrc } from '@tauri-apps/api/core';
 import type { Shop } from '../types/shop';
 import { useActiveShopByVideo } from '../hooks/useActiveShopByVideo';
 import { useAppSettings } from '../hooks/useAppSettings';
@@ -20,6 +21,37 @@ export const VideoSignageView: React.FC<VideoSignageViewProps> = ({ shops }) => 
   const { settings } = useAppSettings();
 
   const activeShop = useActiveShopByVideo(shops, currentVideoFile);
+
+  // 次の動画を特定して、そのショップ情報を取得する
+  const nextVideoFile = useMemo(() => {
+    if (playlist.length === 0) return "";
+    const currentIndex = playlist.indexOf(currentVideoFile);
+    const nextIndex = currentIndex === -1 ? 0 : (currentIndex + 1) % playlist.length;
+    return playlist[nextIndex];
+  }, [playlist, currentVideoFile]);
+
+  const nextShop = useActiveShopByVideo(shops, nextVideoFile);
+
+  // 次のショップの画像をプリロード（先読み）する
+  useEffect(() => {
+    if (!nextShop) return;
+
+    const preload = (path?: string) => {
+      if (!path) return;
+      // パスを整形してURL化
+      const rawPath = path.startsWith('__LOCAL_FILE__:')
+        ? path.substring('__LOCAL_FILE__:'.length)
+        : path;
+      const src = convertFileSrc(rawPath);
+
+      // 画像をメモリ上に読み込む
+      const img = new Image();
+      img.src = src;
+    };
+
+    preload(nextShop.imageUrl);
+    preload(nextShop.shopLogoLocalPath);
+  }, [nextShop]);
 
   useEffect(() => {
     const fetchVideos = async () => {
@@ -119,14 +151,14 @@ export const VideoSignageView: React.FC<VideoSignageViewProps> = ({ shops }) => 
   }, [settings]);
 
   return (
-    <div className="flex flex-col w-full h-full overflow-hidden">
+    <div className="flex flex-col w-full h-full overflow-hidden bg-black">
       {/* 上：店舗イメージ画像 */}
-      <div style={{ height: '31.6%' }} className="shrink-0">
+      <div style={{ height: '31.6%' }} className="shrink-0 bg-black">
         <ImageHeader imageUrl={activeShop?.imageUrl} />
       </div>
 
       {/* 中：店舗情報 */}
-      <div style={{ height: '36.8%' }} className="shrink-0 ">
+      <div style={{ height: '36.8%' }} className="shrink-0 bg-gray-200">
         <ShopInfoOverlay shop={activeShop} />
       </div>
 
@@ -137,12 +169,12 @@ export const VideoSignageView: React.FC<VideoSignageViewProps> = ({ shops }) => 
           backgroundSize: 'cover',
           backgroundPosition: 'center',
         }} 
-        className="shrink-0"
+        className="shrink-0 bg-black"
       >
         <LocalVideoPlayer
           playlist={playlist}
           onVideoChange={setCurrentVideoFile}
-          muted={true} // Dev/サイネージ用途では自動再生を優先するため強制ミュート
+          muted={true}
         />
       </div>
 
