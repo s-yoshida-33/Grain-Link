@@ -33,13 +33,19 @@ fn read_image_file(file_path: String) -> Result<Vec<u8>, String> {
         .map_err(|e| format!("Failed to read image file: {}", e))
 }
 
+#[tauri::command]
+fn read_video_file(file_path: String) -> Result<Vec<u8>, String> {
+    fs::read(&file_path)
+        .map_err(|e| format!("Failed to read video file: {}", e))
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_http::init())
-        .invoke_handler(tauri::generate_handler![fetch_shops_proxy, read_image_file])
+        .invoke_handler(tauri::generate_handler![fetch_shops_proxy, read_image_file, read_video_file])
         .run(tauri::generate_context!())
         .expect("error while running Grain Link");
 }

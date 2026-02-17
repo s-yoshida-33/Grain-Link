@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import type { Shop } from '../types/shop';
 import { formatShopName, formatGenreMemo } from '../utils/format';
 import { useAppSettings } from '../hooks/useAppSettings';
+import { logError } from '../logs/logging';
 
 interface ShopInfoOverlayProps {
   shop: Shop | null;
@@ -24,6 +26,10 @@ export const ShopInfoOverlay: React.FC<ShopInfoOverlayProps> = ({ shop }) => {
   const [shopA, setShopA] = useState<Shop | null>(shop);
   const [shopB, setShopB] = useState<Shop | null>(null);
   const [activeShop, setActiveShop] = useState<'A' | 'B'>('A');
+  
+  // ロゴ URL キャッシュ
+  const [logoUrlA, setLogoUrlA] = useState<string | undefined>(undefined);
+  const [logoUrlB, setLogoUrlB] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     // ショップが変わった場合、非アクティブな方にセットして切り替える
@@ -41,11 +47,52 @@ export const ShopInfoOverlay: React.FC<ShopInfoOverlayProps> = ({ shop }) => {
     }
   }, [shop, activeShop, shopA, shopB]);
 
-  const renderContent = (targetShop: Shop | null, isActive: boolean) => {
+  // ロゴ URL 処理
+  useEffect(() => {
+    const processLogo = async (shopLogoPath: string | undefined) => {
+      if (!shopLogoPath) return undefined;
+
+      let processedUrl = shopLogoPath;
+
+      // __LOCAL_FILE__: マーカーの場合は Object URL に変換
+      if (shopLogoPath.startsWith('__LOCAL_FILE__:')) {
+        const filePath = shopLogoPath.substring('__LOCAL_FILE__:'.length);
+        try {
+          const data = await invoke<number[]>('read_image_file', { filePath });
+          const uint8Array = new Uint8Array(data);
+          const mimeType = filePath.endsWith('.png') 
+            ? 'image/png'
+            : filePath.endsWith('.gif')
+            ? 'image/gif'
+            : filePath.endsWith('.webp')
+            ? 'image/webp'
+            : 'image/jpeg';
+          const blob = new Blob([uint8Array], { type: mimeType });
+          processedUrl = URL.createObjectURL(blob);
+        } catch (error) {
+          logError('SHOP_INFO', 'Failed to load logo file', {
+            error: error instanceof Error ? error.message : String(error),
+            filePath,
+          });
+          return undefined;
+        }
+      }
+
+      return processedUrl;
+    };
+
+    // アクティブショップのロゴを処理
+    if (activeShop === 'A' && shopA?.shopLogoLocalPath) {
+      processLogo(shopA.shopLogoLocalPath).then(url => setLogoUrlA(url));
+    } else if (activeShop === 'B' && shopB?.shopLogoLocalPath) {
+      processLogo(shopB.shopLogoLocalPath).then(url => setLogoUrlB(url));
+    }
+  }, [activeShop, shopA?.shopLogoLocalPath, shopB?.shopLogoLocalPath]);
+
+  const renderContent = (targetShop: Shop | null, logoUrl: string | undefined, isActive: boolean) => {
     // テキスト整形
     const displayName = formatShopName(targetShop?.name || "");
     const displayGenre = formatGenreMemo(targetShop?.genreMemo || "");
-    const currentLogo = targetShop?.shopLogoLocalPath;
 
     return (
     <div 
@@ -66,9 +113,9 @@ export const ShopInfoOverlay: React.FC<ShopInfoOverlayProps> = ({ shop }) => {
               alt=""
               className="absolute inset-0 w-full h-full object-contain pointer-events-none"
             />
-            {currentLogo ? (
+            {logoUrl ? (
               <img 
-                src={currentLogo} 
+                src={logoUrl} 
                 alt={`${displayName} Logo`} 
                 className="w-58 object-contain relative z-10"
               />
@@ -103,8 +150,8 @@ export const ShopInfoOverlay: React.FC<ShopInfoOverlayProps> = ({ shop }) => {
 
   return (
     <div className="relative w-full h-full overflow-hidden bg-gray-200">
-      {renderContent(shopA, activeShop === 'A')}
-      {renderContent(shopB, activeShop === 'B')}
+      {renderContent(shopA, logoUrlA, activeShop === 'A')}
+      {renderContent(shopB, logoUrlB, activeShop === 'B')}
     </div>
   );
 };

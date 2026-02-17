@@ -160,6 +160,14 @@ export const VideoSignageView: React.FC<VideoSignageViewProps> = ({ shops }) => 
           <div>Video dir: {resolvedVideoDir || 'n/a'}</div>
           <div>Playlist: {playlist.length} files</div>
           <div>Current video: {currentVideoFile || 'n/a'}</div>
+          {playlist.length > 0 && (
+            <div className="text-yellow-300">
+              First video file:// URL:
+              <div className="font-mono text-xs break-words">
+                file://{playlist[0]?.replace(/\\/g, '/')}
+              </div>
+            </div>
+          )}
           <div>Image URL: {activeShop?.imageUrl || 'n/a'}</div>
           <div>Logo URL: {activeShop?.shopLogoLocalPath || 'n/a'}</div>
         </div>
