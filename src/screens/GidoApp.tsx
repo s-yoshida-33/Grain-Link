@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useAppSettings } from '../hooks/useAppSettings';
 import { VideoSignageView } from './VideoSignageView';
 import { ShopListView } from './ShopListView';
+import { BootScreen } from './BootScreen';
 import { sseClient } from '../api/sseClient';
 import { fetchShopsFromApi } from '../api/restClient';
 import { normalizeShops, generateMockShops } from '../utils/shopData';
@@ -11,6 +12,7 @@ import type { Shop } from '../types/shop';
 export const GidoApp: React.FC = () => {
   const { settings, loading: settingsLoading } = useAppSettings();
   const [shops, setShops] = useState<Shop[]>([]);
+  const [bootComplete, setBootComplete] = useState(false);
   // const [isSseConnected, setIsSseConnected] = useState(false);
 
   // ショップデータをロードする関数
@@ -87,6 +89,11 @@ export const GidoApp: React.FC = () => {
 
   if (settingsLoading || !settings) {
     return <div className="flex items-center justify-center h-screen">Loading settings...</div>;
+  }
+
+  // ブート完了するまで BootScreen を表示
+  if (!bootComplete) {
+    return <BootScreen onBootComplete={() => setBootComplete(true)} />;
   }
 
   // 設定に応じて表示モード切り替え
