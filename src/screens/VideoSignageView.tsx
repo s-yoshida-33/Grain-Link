@@ -177,7 +177,7 @@ export const VideoSignageView: React.FC<VideoSignageViewProps> = ({ shops }) => 
           {playlist.length > 0 && (
             <div className="text-yellow-300">
               First video file:// URL:
-              <div className="font-mono text-xs break-words">
+              <div className="font-mono text-xs wrap-break-word">
                 file://{playlist[0]?.replace(/\\/g, '/')}
               </div>
             </div>
