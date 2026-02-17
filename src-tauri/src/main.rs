@@ -2,11 +2,18 @@
 
 use serde::{Deserialize, Serialize};
 use std::fs;
+use std::io::Write;
 
 #[derive(Serialize, Deserialize)]
 struct FetchResponse {
     status: u16,
     body: String,
+}
+
+#[derive(Serialize, Deserialize)]
+struct DownloadResponse {
+    success: bool,
+    message: String,
 }
 
 #[tauri::command]
@@ -39,6 +46,68 @@ fn read_video_file(file_path: String) -> Result<Vec<u8>, String> {
         .map_err(|e| format!("Failed to read video file: {}", e))
 }
 
+#[tauri::command]
+fn download_media(url: String, file_name: String, media_type: String) -> Result<DownloadResponse, String> {
+    // ダウンロード実行（非ブロッキング）
+    let rt = tokio::runtime::Runtime::new()
+        .map_err(|e| format!("Runtime error: {}", e))?;
+
+    rt.block_on(async {
+        download_media_async(url, file_name, media_type).await
+    })
+}
+
+async fn download_media_async(url: String, file_name: String, media_type: String) -> Result<DownloadResponse, String> {
+    // アプリのローカルデータディレクトリを取得
+    // Windowsでは通常 C:\Users\{user}\AppData\Local\grain-link
+    let app_data = dirs::data_local_dir()
+        .ok_or("Failed to get local data directory")?
+        .join("grain-link");
+
+    // メディアタイプに応じてディレクトリを分ける
+    let subdir = match media_type.as_str() {
+        "image" => "images",
+        "video" => "videos",
+        _ => "media",
+    };
+
+    // ファイルパスを構築
+    let media_dir = app_data.join(subdir);
+    fs::create_dir_all(&media_dir)
+        .map_err(|e| format!("Failed to create media directory: {}", e))?;
+
+    let file_path = media_dir.join(&file_name);
+
+    // URLからダウンロード
+    let client = reqwest::Client::new();
+    let response = client
+        .get(&url)
+        .send()
+        .await
+        .map_err(|e| format!("HTTP request failed: {}", e))?;
+
+    if !response.status().is_success() {
+        return Err(format!("Bad HTTP status: {}", response.status()));
+    }
+
+    let bytes = response
+        .bytes()
+        .await
+        .map_err(|e| format!("Failed to read response body: {}", e))?;
+
+    // ファイルに保存
+    let mut file = fs::File::create(&file_path)
+        .map_err(|e| format!("Failed to create file: {}", e))?;
+
+    file.write_all(&bytes)
+        .map_err(|e| format!("Failed to write file: {}", e))?;
+
+    Ok(DownloadResponse {
+        success: true,
+        message: format!("Downloaded {} to {}", file_name, file_path.display()),
+    })
+}
+
 fn main() {
     let builder = tauri::Builder::default()
         .plugin(tauri_plugin_fs::init())
@@ -49,7 +118,8 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             fetch_shops_proxy,
             read_image_file,
-            read_video_file
+            read_video_file,
+            download_media
         ]);
 
     let app = builder

@@ -5,6 +5,13 @@ export interface ShopListGridConfig {
   cols: number;
 }
 
+export interface MediaDownloadSettings {
+  autoDownloadOnStartup?: boolean;
+  autoDownloadOnUpdate?: boolean;
+  maxConcurrentDownloads?: number;
+  retryAttempts?: number;
+}
+
 export interface AppSettings {
   appMode: AppMode;
   mallId: string;
@@ -12,4 +19,5 @@ export interface AppSettings {
   apiEndpoint: string;
   shopListGrid: ShopListGridConfig;
   isMuted?: boolean;
+  mediaDownloadSettings?: MediaDownloadSettings;
 }

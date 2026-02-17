@@ -38,3 +38,75 @@ export const fetchShopsFromApi = async (): Promise<Shop[]> => {
     return [];
   }
 };
+
+// REST APIからメディアリストを取得
+export const fetchMediaListFromApi = async (mallId: string): Promise<{ imageUrls: string[]; videoUrls: string[] }> => {
+  try {
+    const settings = await loadSettings();
+    
+    const baseUrl = settings.apiEndpoint.replace(/\/api\/events$/, '');
+    const apiUrl = `${baseUrl}/api/media/list?mallId=${mallId}`;
+
+    logInfo('DATA_SYNC', `Fetching media list from: ${apiUrl}`, { url: apiUrl, mallId });
+
+    const response = await invoke<{ status: number; body: string }>('fetch_shops_proxy', { url: apiUrl });
+
+    if (response.status !== 200) {
+      throw new Error(`API error: ${response.status}`);
+    }
+
+    const data = JSON.parse(response.body);
+    logInfo('DATA_SYNC', `Received media list`, {
+      imageCount: data.imageUrls?.length || 0,
+      videoCount: data.videoUrls?.length || 0,
+    });
+
+    return {
+      imageUrls: data.imageUrls || [],
+      videoUrls: data.videoUrls || [],
+    };
+  } catch (error) {
+    logError('DATA_SYNC', 'Failed to fetch media list from API', {
+      error: error instanceof Error ? error.message : String(error),
+      mallId,
+    });
+    return { imageUrls: [], videoUrls: [] };
+  }
+};
+
+// REST APIからメディアのダウンロード状態を取得
+export const fetchMediaDownloadStatusFromApi = async (mallId: string): Promise<{
+  imageDownloadedCount: number;
+  imageTotal: number;
+  videoDownloadedCount: number;
+  videoTotal: number;
+}> => {
+  try {
+    const settings = await loadSettings();
+    
+    const baseUrl = settings.apiEndpoint.replace(/\/api\/events$/, '');
+    const apiUrl = `${baseUrl}/api/media/status?mallId=${mallId}`;
+
+    logInfo('DATA_SYNC', `Fetching media download status from: ${apiUrl}`, { url: apiUrl, mallId });
+
+    const response = await invoke<{ status: number; body: string }>('fetch_shops_proxy', { url: apiUrl });
+
+    if (response.status !== 200) {
+      throw new Error(`API error: ${response.status}`);
+    }
+
+    const data = JSON.parse(response.body);
+    return data;
+  } catch (error) {
+    logError('DATA_SYNC', 'Failed to fetch media download status from API', {
+      error: error instanceof Error ? error.message : String(error),
+      mallId,
+    });
+    return {
+      imageDownloadedCount: 0,
+      imageTotal: 0,
+      videoDownloadedCount: 0,
+      videoTotal: 0,
+    };
+  }
+};
