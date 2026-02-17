@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { invoke } from '@tauri-apps/api/core';
+import { convertFileSrc } from '@tauri-apps/api/core';
 import type { Shop } from '../types/shop';
 import { formatShopName, formatGenreMemo } from '../utils/format';
 import { useAppSettings } from '../hooks/useAppSettings';
-import { logError } from '../logs/logging';
 
 interface ShopInfoOverlayProps {
   shop: Shop | null;
@@ -49,45 +48,26 @@ export const ShopInfoOverlay: React.FC<ShopInfoOverlayProps> = ({ shop }) => {
 
   // ロゴ URL 処理
   useEffect(() => {
-    const processLogo = async (shopLogoPath: string | undefined) => {
+    const processLogo = (shopLogoPath: string | undefined): string | undefined => {
       if (!shopLogoPath) return undefined;
 
-      let processedUrl = shopLogoPath;
+      // __LOCAL_FILE__: マーカーの場合は convertFileSrc でアセットURL化
+      const rawPath = shopLogoPath.startsWith('__LOCAL_FILE__:') 
+        ? shopLogoPath.substring('__LOCAL_FILE__:'.length) 
+        : shopLogoPath;
 
-      // __LOCAL_FILE__: マーカーの場合は Object URL に変換
-      if (shopLogoPath.startsWith('__LOCAL_FILE__:')) {
-        const filePath = shopLogoPath.substring('__LOCAL_FILE__:'.length);
-        try {
-          const data = await invoke<number[]>('read_image_file', { filePath });
-          const uint8Array = new Uint8Array(data);
-          const mimeType = filePath.endsWith('.png') 
-            ? 'image/png'
-            : filePath.endsWith('.gif')
-            ? 'image/gif'
-            : filePath.endsWith('.webp')
-            ? 'image/webp'
-            : 'image/jpeg';
-          const blob = new Blob([uint8Array], { type: mimeType });
-          processedUrl = URL.createObjectURL(blob);
-        } catch (error) {
-          logError('SHOP_INFO', 'Failed to load logo file', {
-            error: error instanceof Error ? error.message : String(error),
-            filePath,
-          });
-          return undefined;
-        }
-      }
-
-      return processedUrl;
+      return convertFileSrc(rawPath);
     };
 
     // アクティブショップのロゴを処理
     if (activeShop === 'A' && shopA?.shopLogoLocalPath) {
-      processLogo(shopA.shopLogoLocalPath).then(url => setLogoUrlA(url));
+      const logoUrl = processLogo(shopA.shopLogoLocalPath);
+      setLogoUrlA(logoUrl);
     } else if (activeShop === 'B' && shopB?.shopLogoLocalPath) {
-      processLogo(shopB.shopLogoLocalPath).then(url => setLogoUrlB(url));
+      const logoUrl = processLogo(shopB.shopLogoLocalPath);
+      setLogoUrlB(logoUrl);
     }
-  }, [activeShop, shopA?.shopLogoLocalPath, shopB?.shopLogoLocalPath]);
+  }, [activeShop, shopA?.id, shopB?.id]);
 
   const renderContent = (targetShop: Shop | null, logoUrl: string | undefined, isActive: boolean) => {
     // テキスト整形
