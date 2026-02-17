@@ -1,5 +1,4 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
-import { invoke } from '@tauri-apps/api/core';
 import { logError, logWarn } from '../logs/logging';
 
 interface LocalVideoPlayerProps {
@@ -31,7 +30,7 @@ export const LocalVideoPlayer: React.FC<LocalVideoPlayerProps> = ({
   const getInactivePlayer = useCallback((active: 'A' | 'B'): 'A' | 'B' => active === 'A' ? 'B' : 'A', []);
 
   // 指定されたプレイヤーに動画をセットして準備する関数
-  const preparePlayer = useCallback(async (player: 'A' | 'B', fileIndex: number) => {
+  const preparePlayer = useCallback((player: 'A' | 'B', fileIndex: number) => {
     if (playlist.length === 0) return;
     
     const index = fileIndex % playlist.length;
@@ -40,19 +39,19 @@ export const LocalVideoPlayer: React.FC<LocalVideoPlayerProps> = ({
 
     if (ref.current) {
       try {
-        // Tauri invoke でビデオファイルをバイナリで読み込む
-        const data = await invoke<number[]>('read_video_file', { filePath });
-        const uint8Array = new Uint8Array(data);
-        const blob = new Blob([uint8Array], { type: 'video/mp4' });
-        const blobUrl = URL.createObjectURL(blob);
+        // ファイルパスから filename を抽出
+        // C:/dev/Grain-Link/tmp/.../file.mp4 -> file.mp4
+        const filename = filePath.split(/[/\\]/).pop() || '';
+        const videoUrl = `http://localhost:9001/videos/${filename}`;
         
-        ref.current.src = blobUrl;
+        ref.current.src = videoUrl;
         ref.current.load();
         
         logWarn('LOCAL_VIDEO', `Video prepared for player ${player}`, {
           fileIndex: index,
           filePath,
-          blobUrl,
+          filename,
+          videoUrl,
         });
       } catch (error) {
         logError('LOCAL_VIDEO', `Failed to prepare player ${player}`, {
@@ -96,34 +95,30 @@ export const LocalVideoPlayer: React.FC<LocalVideoPlayerProps> = ({
 
   // 初期化処理
   useEffect(() => {
-    const initialize = async () => {
-      if (playlist.length > 0 && !isInitialized) {
-        // 最初の動画をAにセットして再生
-        await preparePlayer('A', 0);
-        await playVideo('A');
-        
-        // 次の動画をBにセットしておく（プリロード）
-        if (playlist.length > 1) {
-          await preparePlayer('B', 1);
-        } else {
-          await preparePlayer('B', 0); // 1曲ループの場合
-        }
-
-        // 通知
-        const currentFile = playlist[0];
-        const fileName = currentFile.split(/[/\\]/).pop() || currentFile;
-        onVideoChange(fileName);
-
-        logWarn('LOCAL_VIDEO', 'Playlist initialized', {
-          playlistLength: playlist.length,
-          firstFile: fileName,
-        });
-
-        setIsInitialized(true);
+    if (playlist.length > 0 && !isInitialized) {
+      // 最初の動画をAにセットして再生
+      preparePlayer('A', 0);
+      playVideo('A');
+      
+      // 次の動画をBにセットしておく（プリロード）
+      if (playlist.length > 1) {
+        preparePlayer('B', 1);
+      } else {
+        preparePlayer('B', 0); // 1曲ループの場合
       }
-    };
-    
-    initialize();
+
+      // 通知
+      const currentFile = playlist[0];
+      const fileName = currentFile.split(/[/\\]/).pop() || currentFile;
+      onVideoChange(fileName);
+
+      logWarn('LOCAL_VIDEO', 'Playlist initialized', {
+        playlistLength: playlist.length,
+        firstFile: fileName,
+      });
+
+      setIsInitialized(true);
+    }
   }, [playlist, isInitialized, preparePlayer, playVideo, onVideoChange]);
 
   // 動画終了ハンドラ
@@ -151,22 +146,19 @@ export const LocalVideoPlayer: React.FC<LocalVideoPlayerProps> = ({
     const fileName = nextFile.split(/[/\\]/).pop() || nextFile;
     onVideoChange(fileName);
 
-    // 3. 非同期で処理
-    (async () => {
-      // 次のプレイヤーで再生開始 (すでにロード済みのはず)
-      await playVideo(nextPlayer);
+    // 3. 次のプレイヤーで再生開始 (すでにロード済みのはず)
+    playVideo(nextPlayer);
 
-      // バックグラウンドで「さらに次の動画」をプリロード
-      // クロスフェード中（1秒間）に準備する
-      setTimeout(() => {
-        preparePlayer(inactivePlayer, futureIndex);
-        logWarn('LOCAL_VIDEO', 'Next video preloaded', { 
-          futureIndex, 
-          player: inactivePlayer,
-          filePath: playlist[futureIndex],
-        });
-      }, 500); // クロスフェード中盤で準備開始
-    })();
+    // 4. バックグラウンドで「さらに次の動画」をプリロード
+    // クロスフェード中（1秒間）に準備する
+    setTimeout(() => {
+      preparePlayer(inactivePlayer, futureIndex);
+      logWarn('LOCAL_VIDEO', 'Next video preloaded', { 
+        futureIndex, 
+        player: inactivePlayer,
+        filePath: playlist[futureIndex],
+      });
+    }, 500); // クロスフェード中盤で準備開始
 
   }, [currentIndex, playlist, activePlayer, playVideo, preparePlayer, onVideoChange, getInactivePlayer]);
 
