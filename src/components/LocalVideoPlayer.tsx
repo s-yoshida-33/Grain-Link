@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { convertFileSrc } from '@tauri-apps/api/core';
-import { logError } from '../logs/logging';
+import { logError, logWarn } from '../logs/logging';
 
 interface LocalVideoPlayerProps {
   playlist: string[];
@@ -36,8 +36,13 @@ export const LocalVideoPlayer: React.FC<LocalVideoPlayerProps> = ({
     const ref = player === 'A' ? videoRefA : videoRefB;
 
     if (ref.current) {
-      ref.current.src = convertFileSrc(file);
+      const src = convertFileSrc(file, 'asset');
+      ref.current.src = src;
       ref.current.load();
+
+      if (!src.startsWith('asset:')) {
+        logWarn('LOCAL_VIDEO', 'Video src is not asset scheme, check URL', { file, src });
+      }
     }
   }, [playlist]);
 
@@ -121,6 +126,7 @@ export const LocalVideoPlayer: React.FC<LocalVideoPlayerProps> = ({
         }}
         muted={muted}
         playsInline
+        autoPlay
         onEnded={handleEnded}
       />
       
@@ -135,6 +141,7 @@ export const LocalVideoPlayer: React.FC<LocalVideoPlayerProps> = ({
         }}
         muted={muted}
         playsInline
+        autoPlay
         onEnded={handleEnded}
       />
     </div>

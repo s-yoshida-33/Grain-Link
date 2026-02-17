@@ -32,24 +32,30 @@ const isAbsoluteFilePath = (p: string) => /^[a-zA-Z]:[\\/]/.test(p) || p.startsW
 
 const toDisplayPath = (rawPath?: string, apiEndpoint?: string): string => {
   if (!rawPath) return "";
-  const normalized = rawPath.replace(/\\/g, '/');
-  if (/^https?:\/\//i.test(normalized)) return normalized;
-  if (/^file:\/\//i.test(normalized)) return normalized;
 
-  // 絶対パスならローカルファイルとして扱う
-  if (isAbsoluteFilePath(normalized)) {
-    return convertFileSrc(normalized);
+  // HTTP/HTTPS はそのまま
+  if (/^https?:\/\//i.test(rawPath)) return rawPath;
+
+  // 区切りをスラッシュに統一
+  const normalizedPath = rawPath.replace(/\\/g, '/');
+
+  // file:// はそのまま
+  if (/^file:\/\//i.test(normalizedPath)) return normalizedPath;
+
+  // 絶対パスなら asset URL に変換
+  if (isAbsoluteFilePath(normalizedPath)) {
+    return convertFileSrc(normalizedPath);
   }
 
-  // 相対パスの場合は API ベースを付与して HTTP 参照にする
+  // 相対パスなら API ベースを付与
   if (apiEndpoint) {
-    const base = apiEndpoint.replace(/\/api\/events$/, '').replace(/\/$/, '');
-    const path = normalized.startsWith('/') ? normalized : `/${normalized}`;
-    return `${base}${path}`;
+    const cleanBase = apiEndpoint.replace(/\/api\/events$/, '').replace(/\/+$/, '');
+    const cleanPath = normalizedPath.startsWith('/') ? normalizedPath : `/${normalizedPath}`;
+    return `${cleanBase}${cleanPath}`;
   }
 
-  // フォールバック: ローカルファイルとして解決を試みる
-  return convertFileSrc(normalized);
+  // フォールバック
+  return convertFileSrc(normalizedPath);
 };
 
 // データ正規化関数

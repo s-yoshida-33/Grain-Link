@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BaseDirectory, readDir } from '@tauri-apps/plugin-fs';
+import { readDir } from '@tauri-apps/plugin-fs';
 import { appLocalDataDir, appDataDir, join } from '@tauri-apps/api/path';
 import type { Shop } from '../types/shop';
 import { useActiveShopByVideo } from '../hooks/useActiveShopByVideo';
@@ -16,6 +16,7 @@ interface VideoSignageViewProps {
 export const VideoSignageView: React.FC<VideoSignageViewProps> = ({ shops }) => {
   const [playlist, setPlaylist] = useState<string[]>([]);
   const [currentVideoFile, setCurrentVideoFile] = useState<string>("");
+  const [resolvedVideoDir, setResolvedVideoDir] = useState<string>("");
   const { settings } = useAppSettings();
 
   const activeShop = useActiveShopByVideo(shops, currentVideoFile);
@@ -24,7 +25,7 @@ export const VideoSignageView: React.FC<VideoSignageViewProps> = ({ shops }) => 
     const fetchVideos = async () => {
       try {
         const mallId = settings?.mallId || 'sakaikitahanada';
-        const devVideoDir = `tmp/${mallId}/assets/videos`;
+        const devVideoDirAbs = await join('C:/dev/Grain-Link', 'tmp', mallId, 'assets', 'videos');
 
         const candidates: Array<{
           label: string;
@@ -43,10 +44,11 @@ export const VideoSignageView: React.FC<VideoSignageViewProps> = ({ shops }) => 
 
         // 2) 開発時の tmp/<mallId>/assets/videos（リポジトリ直下を想定）
         if (import.meta.env.DEV) {
+          // 相対パスはスコープ拒否されるので絶対パスのみ使用
           candidates.push({
-            label: 'dev tmp',
-            dirPath: devVideoDir,
-            entries: readDir(devVideoDir),
+            label: 'dev tmp abs',
+            dirPath: devVideoDirAbs,
+            entries: readDir(devVideoDirAbs),
           });
         }
 
@@ -90,17 +92,26 @@ export const VideoSignageView: React.FC<VideoSignageViewProps> = ({ shops }) => 
           throw new Error('No readable video directory was found');
         }
 
+        setResolvedVideoDir(pickedDir);
+
         const videoFiles = await Promise.all(
           pickedEntries
             .filter((entry) => entry.isFile && entry.name && /\.(mp4|webm|mov)$/i.test(entry.name))
             .map(async (entry) => {
-              // 確実に絶対パスへ結合
-              return await join(pickedDir, entry.name as string);
+              // 確実に絶対パスへ結合し、パス区切りを統一して asset 変換で詰まらないようにする
+              const absolutePath = await join(pickedDir, entry.name as string);
+              return absolutePath.replace(/\\/g, '/');
             })
         );
 
         videoFiles.sort();
         setPlaylist(videoFiles);
+
+        logWarn('LOCAL_VIDEO', 'Picked video directory', {
+          dir: pickedDir,
+          fileCount: videoFiles.length,
+          sample: videoFiles.slice(0, 3),
+        });
 
         if (videoFiles.length === 0) {
           logWarn('LOCAL_VIDEO', 'No videos found in directory', { dir: pickedDir });
@@ -140,9 +151,19 @@ export const VideoSignageView: React.FC<VideoSignageViewProps> = ({ shops }) => 
         <LocalVideoPlayer
           playlist={playlist}
           onVideoChange={setCurrentVideoFile}
-          muted={settings?.isMuted || false}
+          muted={true} // Dev/サイネージ用途では自動再生を優先するため強制ミュート
         />
       </div>
+
+      {import.meta.env.DEV && (
+        <div className="absolute bottom-4 left-4 bg-black/70 text-white text-xs p-3 rounded leading-relaxed space-y-1 z-50 max-w-[60vw]">
+          <div>Video dir: {resolvedVideoDir || 'n/a'}</div>
+          <div>Playlist: {playlist.length} files</div>
+          <div>Current video: {currentVideoFile || 'n/a'}</div>
+          <div>Image URL: {activeShop?.imageUrl || 'n/a'}</div>
+          <div>Logo URL: {activeShop?.shopLogoLocalPath || 'n/a'}</div>
+        </div>
+      )}
     </div>
   );
 };
