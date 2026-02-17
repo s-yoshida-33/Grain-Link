@@ -28,27 +28,9 @@ fn fetch_shops_proxy(url: String) -> Result<FetchResponse, String> {
 }
 
 #[tauri::command]
-fn load_image_file(file_path: String) -> Result<String, String> {
-    let data = fs::read(&file_path)
-        .map_err(|e| format!("Failed to read file {}: {}", file_path, e))?;
-    
-    // ファイル拡張子から MIME タイプを判定
-    let mime_type = if file_path.ends_with(".png") {
-        "image/png"
-    } else if file_path.ends_with(".jpg") || file_path.ends_with(".jpeg") {
-        "image/jpeg"
-    } else if file_path.ends_with(".gif") {
-        "image/gif"
-    } else if file_path.ends_with(".webp") {
-        "image/webp"
-    } else {
-        "application/octet-stream"
-    };
-    
-    // Base64 エンコード
-    let base64_data = base64::encode(&data);
-    
-    Ok(format!("data:{};base64,{}", mime_type, base64_data))
+fn read_image_file(file_path: String) -> Result<Vec<u8>, String> {
+    fs::read(&file_path)
+        .map_err(|e| format!("Failed to read image file: {}", e))
 }
 
 fn main() {
@@ -57,7 +39,7 @@ fn main() {
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_http::init())
-        .invoke_handler(tauri::generate_handler![fetch_shops_proxy, load_image_file])
+        .invoke_handler(tauri::generate_handler![fetch_shops_proxy, read_image_file])
         .run(tauri::generate_context!())
         .expect("error while running Grain Link");
 }
