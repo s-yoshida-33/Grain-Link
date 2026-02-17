@@ -1198,7 +1198,6 @@ dependencies = [
 name = "grain-link"
 version = "0.0.0"
 dependencies = [
- "base64 0.21.7",
  "reqwest 0.11.27",
  "serde",
  "serde_json",

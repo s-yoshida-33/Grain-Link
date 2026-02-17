@@ -16,7 +16,7 @@ export const ShopCard: React.FC<ShopCardProps> = ({ shop }) => {
   
   const [imageUrl, setImageUrl] = useState<string>("");
 
-  // 画像URLを処理（ローカルファイルパスの場合は Data URL に変換）
+  // 画像URLを処理（ローカルファイルパスの場合は Object URL に変換）
   useEffect(() => {
     if (!shop?.imageUrl) {
       setImageUrl("");
@@ -24,12 +24,27 @@ export const ShopCard: React.FC<ShopCardProps> = ({ shop }) => {
     }
 
     if (shop.imageUrl.startsWith('__LOCAL_FILE__:')) {
-      // ローカルファイルパス: Tauri コマンドで Data URL に変換
+      // ローカルファイルパス: Object URL に変換して効率的に表示
       const filePath = shop.imageUrl.substring('__LOCAL_FILE__:'.length);
-      invoke<string>('load_image_file', { filePath })
-        .then(dataUrl => setImageUrl(dataUrl))
-        .catch(error => {
-          logError('SHOP_CARD', 'Failed to load image file', { error: String(error), filePath });
+      
+      invoke<number[]>('read_image_file', { filePath })
+        .then((data: number[]) => {
+          // ファイル拡張子から MIME タイプを判定
+          const mimeType = filePath.endsWith('.png') 
+            ? 'image/png'
+            : filePath.endsWith('.gif')
+            ? 'image/gif'
+            : filePath.endsWith('.webp')
+            ? 'image/webp'
+            : 'image/jpeg'; // jpg/jpeg が最も一般的
+          
+          const uint8Array = new Uint8Array(data);
+          const blob = new Blob([uint8Array], { type: mimeType });
+          const url = URL.createObjectURL(blob);
+          setImageUrl(url);
+        })
+        .catch((error: unknown) => {
+          logError('SHOP_CARD', 'Failed to load image file', { error: error instanceof Error ? error.message : String(error), filePath });
           setImageUrl("");
         });
     } else {

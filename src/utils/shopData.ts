@@ -1,5 +1,4 @@
 // ショップデータのモック生成と正規化ロジック
-import { convertFileSrc } from '@tauri-apps/api/core';
 import type { Shop } from '../types/shop';
 
 // Bridge APIからの生データ形式 (実データに基づく)
