@@ -153,11 +153,11 @@ export const LocalVideoPlayer: React.FC<LocalVideoPlayerProps> = ({
   }, [currentIndex, playlist, activePlayer, isFading, preparePlayer, onVideoChange, getInactivePlayer]);
 
   if (playlist.length === 0) {
-    return <div className="flex items-center justify-center h-full bg-black text-white">No Videos</div>;
+    return <div className="flex items-center justify-center h-full bg-white text-black">No Videos</div>;
   }
 
   return (
-    <div className={`relative w-full h-full bg-black ${className}`}>
+    <div className={`relative w-full h-full bg-white ${className}`}>
       {/* Video Player A */}
       <video
         ref={videoRefA}
