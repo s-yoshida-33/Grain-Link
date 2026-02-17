@@ -45,6 +45,12 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ children }) => {
     window.open(RELEASE_URL, '_blank', 'noreferrer');
   }, []);
 
+  const items = [
+    { label: 'リロード', action: reloadApp },
+    { label: '終了', action: quitApp },
+    { label: '手動更新 (Releasesを開く)', action: openReleases },
+  ];
+
   return (
     <>
       {children}
@@ -64,7 +70,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ children }) => {
             overflow: 'hidden',
           }}
         >
-          {[{ label: 'リロード', action: reloadApp }, { label: '終了', action: quitApp }, { label: '手動更新 (Releasesを開く)', action: openReleases }].map((item, index) => (
+          {items.map((item, index) => (
             <button
               key={item.label}
               onClick={() => {
@@ -78,7 +84,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ children }) => {
                 backgroundColor: 'transparent',
                 color: '#f8f8f8',
                 border: 'none',
-                borderBottom: index === 2 ? 'none' : '1px solid #2a2a2a',
+                borderBottom: index === items.length - 1 ? 'none' : '1px solid #2a2a2a',
                 cursor: 'pointer',
                 fontSize: 13,
               }}
