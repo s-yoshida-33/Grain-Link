@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { invoke } from '@tauri-apps/api/core';
+import { logError } from '../logs/logging';
 
 interface ImageHeaderProps {
   imageUrl?: string;
@@ -6,24 +8,59 @@ interface ImageHeaderProps {
 
 export const ImageHeader: React.FC<ImageHeaderProps> = ({ imageUrl }) => {
   // ダブルバッファリング用のステート
-  const [imageA, setImageA] = useState<string | undefined>(imageUrl);
+  const [imageA, setImageA] = useState<string | undefined>(undefined);
   const [imageB, setImageB] = useState<string | undefined>(undefined);
   const [activeImage, setActiveImage] = useState<'A' | 'B'>('A');
 
   useEffect(() => {
-    // 画像URLが変わった場合、非アクティブな方にセットして切り替える
-    const currentActiveUrl = activeImage === 'A' ? imageA : imageB;
-    
-    if (imageUrl !== currentActiveUrl) {
+    if (!imageUrl) {
       if (activeImage === 'A') {
-        setImageB(imageUrl);
+        setImageB(undefined);
+      } else {
+        setImageA(undefined);
+      }
+      return;
+    }
+
+    const processImage = async () => {
+      let processedUrl = imageUrl;
+
+      // __LOCAL_FILE__: マーカーの場合は Object URL に変換
+      if (imageUrl.startsWith('__LOCAL_FILE__:')) {
+        const filePath = imageUrl.substring('__LOCAL_FILE__:'.length);
+        try {
+          const data = await invoke<number[]>('read_image_file', { filePath });
+          const uint8Array = new Uint8Array(data);
+          const mimeType = filePath.endsWith('.png') 
+            ? 'image/png'
+            : filePath.endsWith('.gif')
+            ? 'image/gif'
+            : filePath.endsWith('.webp')
+            ? 'image/webp'
+            : 'image/jpeg';
+          const blob = new Blob([uint8Array], { type: mimeType });
+          processedUrl = URL.createObjectURL(blob);
+        } catch (error) {
+          logError('IMAGE_HEADER', 'Failed to load image file', {
+            error: error instanceof Error ? error.message : String(error),
+            filePath,
+          });
+          return;
+        }
+      }
+
+      // 非アクティブな方にセットして切り替える
+      if (activeImage === 'A') {
+        setImageB(processedUrl);
         setActiveImage('B');
       } else {
-        setImageA(imageUrl);
+        setImageA(processedUrl);
         setActiveImage('A');
       }
-    }
-  }, [imageUrl, activeImage, imageA, imageB]);
+    };
+
+    processImage();
+  }, [imageUrl, activeImage]);
 
   const renderImage = (src: string | undefined, isActive: boolean) => {
     return (
