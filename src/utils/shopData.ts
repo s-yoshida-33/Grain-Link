@@ -28,8 +28,9 @@ interface BridgeShop {
   imageUrl?: string;
 }
 
-const isAbsoluteFilePath = (p: string) => /^[a-zA-Z]:[\\/]/.test(p) || p.startsWith('/') || p.startsWith('\\');
+const isAbsoluteFilePath = (p: string) => /^[a-zA-Z]:[\\/]/.test(p) || p.startsWith('\\');
 
+// 相対パスなら API ベースを付与
 const toDisplayPath = (rawPath?: string, apiEndpoint?: string): string => {
   if (!rawPath) return "";
 
@@ -42,9 +43,12 @@ const toDisplayPath = (rawPath?: string, apiEndpoint?: string): string => {
   // file:// はそのまま
   if (/^file:\/\//i.test(normalizedPath)) return normalizedPath;
 
-  // 絶対パスなら asset URL に変換
+  // data: はそのまま
+  if (/^data:/i.test(normalizedPath)) return normalizedPath;
+
+  // 絶対ファイルパスなら marker をつけて返す (コンポーネント側で処理)
   if (isAbsoluteFilePath(normalizedPath)) {
-    return convertFileSrc(normalizedPath);
+    return `__LOCAL_FILE__:${normalizedPath}`;
   }
 
   // 相対パスなら API ベースを付与
@@ -54,8 +58,7 @@ const toDisplayPath = (rawPath?: string, apiEndpoint?: string): string => {
     return `${cleanBase}${cleanPath}`;
   }
 
-  // フォールバック
-  return convertFileSrc(normalizedPath);
+  return "";
 };
 
 // データ正規化関数
@@ -71,6 +74,8 @@ export const normalizeShops = (rawData: any, apiEndpoint?: string): Shop[] => {
   }
 
   return list.map(item => {
+    // ローカルパス (photo2LocalPath) を優先。API側の /files/shop/XXX エンドポイントが
+    // 実装されていないため、Tauri の convertFileSrc() で資産URLに変換する
     const imageUrl = toDisplayPath(
       item.photo2LocalPath || item.photo2 || item.image_url || item.imageUrl,
       apiEndpoint

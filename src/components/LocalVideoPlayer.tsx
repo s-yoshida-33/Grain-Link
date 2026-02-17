@@ -27,6 +27,9 @@ export const LocalVideoPlayer: React.FC<LocalVideoPlayerProps> = ({
   // 初期化完了フラグ
   const [isInitialized, setIsInitialized] = useState(false);
 
+  // 非アクティブなプレイヤーを取得
+  const getInactivePlayer = useCallback((active: 'A' | 'B'): 'A' | 'B' => active === 'A' ? 'B' : 'A', []);
+
   // 指定されたプレイヤーに動画をセットして準備する関数
   const preparePlayer = useCallback((player: 'A' | 'B', fileIndex: number) => {
     if (playlist.length === 0) return;
@@ -51,9 +54,26 @@ export const LocalVideoPlayer: React.FC<LocalVideoPlayerProps> = ({
     const ref = player === 'A' ? videoRefA : videoRefB;
     if (ref.current) {
       try {
-        await ref.current.play();
+        // autoPlayが機能しない場合に備えて、明示的に再生を試みる
+        const playPromise = ref.current.play();
+        if (playPromise !== undefined) {
+          playPromise.catch(error => {
+            logWarn('LOCAL_VIDEO', `Player ${player} play() failed, will retry`, {
+              error: error.message
+            });
+            // 自動再生ポリシー失敗時は、次のユーザーアクション待つか、ミューテッド属性を確認
+            // ミューテッド状態で再度試行
+            if (ref.current && ref.current.muted) {
+              ref.current.play().catch(e => {
+                logError('LOCAL_VIDEO', `Player ${player} play() failed twice`, {
+                  error: e instanceof Error ? e.message : String(e)
+                });
+              });
+            }
+          });
+        }
       } catch (e) {
-        logError('LOCAL_VIDEO', `Player ${player} auto-play failed`, {
+        logError('LOCAL_VIDEO', `Player ${player} auto-play error`, {
           error: e instanceof Error ? e.message : String(e)
         });
       }
@@ -86,28 +106,29 @@ export const LocalVideoPlayer: React.FC<LocalVideoPlayerProps> = ({
   // 動画終了ハンドラ
   const handleEnded = useCallback(() => {
     const nextIndex = (currentIndex + 1) % playlist.length;
-    const nextPlayer = activePlayer === 'A' ? 'B' : 'A';
+    const nextPlayer = getInactivePlayer(activePlayer);
     
-    // 1. 次のプレイヤーで再生開始 (すでにロード済み)
-    playVideo(nextPlayer);
-    
-    // 2. アクティブプレイヤーを切り替え (クロスフェード開始)
+    // 1. 状態を更新: 次のプレイヤーをアクティブに
     setActivePlayer(nextPlayer);
     setCurrentIndex(nextIndex);
 
-    // 3. 通知
+    // 2. 通知
     const nextFile = playlist[nextIndex];
     const fileName = nextFile.split(/[/\\]/).pop() || nextFile;
     onVideoChange(fileName);
 
-    // 4. 再生が終わったプレイヤーで「さらに次の動画」をプリロード
-    // ただし、即座に行うとフェードアウト中の動画が切り替わってしまうため、フェード時間分待つ
-    const futureIndex = (nextIndex + 1) % playlist.length;
-    setTimeout(() => {
-        preparePlayer(activePlayer, futureIndex); // activePlayerはこれから非アクティブになる方
-    }, 1000); // クロスフェード時間(1s)待機
+    // 3. 次のプレイヤーで再生開始 (すでにロード済みのはず)
+    playVideo(nextPlayer);
 
-  }, [currentIndex, playlist, activePlayer, playVideo, preparePlayer, onVideoChange]);
+    // 4. バックグラウンドで「さらに次の動画」をプリロード
+    // クロスフェード中（1秒間）に準備する
+    const futureIndex = (nextIndex + 1) % playlist.length;
+    const inactivePlayer = getInactivePlayer(nextPlayer);
+    setTimeout(() => {
+        preparePlayer(inactivePlayer, futureIndex);
+    }, 500); // クロスフェード中盤で準備開始
+
+  }, [currentIndex, playlist, activePlayer, playVideo, preparePlayer, onVideoChange, getInactivePlayer]);
 
   if (playlist.length === 0) {
     return <div className="flex items-center justify-center h-full bg-black text-white">No Videos</div>;

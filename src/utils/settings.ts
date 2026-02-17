@@ -24,15 +24,7 @@ export const loadSettings = async (): Promise<AppSettings> => {
   return applyRuntimeDefaults(defaultSettings as AppSettings);
 };
 
-// Dev 環境では Vite のプロキシを活用するため、API エンドポイントを相対パスに差し替える。
-// 本番ビルドでは設定値をそのまま使う。
+// Dev 環境でも設定ファイルの値を優先する
 const applyRuntimeDefaults = (settings: AppSettings): AppSettings => {
-  if (import.meta.env.DEV) {
-    return {
-      ...settings,
-      apiEndpoint: '/api/events',
-    };
-  }
-
   return settings;
 };
