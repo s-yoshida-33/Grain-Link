@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "identifier": "com.grain-link.app",
-  "productName": "grain-link",
+  "productName": "Grain Link",
   "version": "0.2.0",
   "build": {
     "beforeDevCommand": "npm run dev",
