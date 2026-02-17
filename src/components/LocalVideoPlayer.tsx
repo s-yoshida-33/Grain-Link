@@ -1,4 +1,5 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
+import { convertFileSrc } from '@tauri-apps/api/core';
 import { logError, logWarn } from '../logs/logging';
 
 interface LocalVideoPlayerProps {
@@ -39,10 +40,9 @@ export const LocalVideoPlayer: React.FC<LocalVideoPlayerProps> = ({
 
     if (ref.current) {
       try {
-        // ファイルパスから filename を抽出
-        // C:/dev/Grain-Link/tmp/.../file.mp4 -> file.mp4
+        // Tauri の convertFileSrc を使用してローカルファイルを安全にアクセス
+        const videoUrl = convertFileSrc(filePath);
         const filename = filePath.split(/[/\\]/).pop() || '';
-        const videoUrl = `http://localhost:9001/videos/${filename}`;
         
         ref.current.src = videoUrl;
         ref.current.load();

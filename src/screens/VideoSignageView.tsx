@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { readDir } from '@tauri-apps/plugin-fs';
-import { appLocalDataDir, appDataDir, join } from '@tauri-apps/api/path';
-import { invoke } from '@tauri-apps/api/core';
+import { appLocalDataDir, join } from '@tauri-apps/api/path';
 import type { Shop } from '../types/shop';
 import { useActiveShopByVideo } from '../hooks/useActiveShopByVideo';
 import { useAppSettings } from '../hooks/useAppSettings';
@@ -53,16 +52,7 @@ export const VideoSignageView: React.FC<VideoSignageViewProps> = ({ shops }) => 
           });
         }
 
-        // 3) Roaming (AppData) 配下の標準パス: grain-link/videos
-        const roamingDir = await appDataDir();
-        const roamingTarget = await join(roamingDir, 'grain-link', 'videos');
-        candidates.push({
-          label: 'AppData/grain-link/videos',
-          dirPath: roamingTarget,
-          entries: readDir(roamingTarget),
-        });
-
-        // 4) Local (AppLocalData) 配下の標準パス: videos
+        // 3) Local (AppLocalData) 配下の標準パス: videos
         const localDir = await appLocalDataDir();
         const localTarget = await join(localDir, 'videos');
         candidates.push({
@@ -127,19 +117,6 @@ export const VideoSignageView: React.FC<VideoSignageViewProps> = ({ shops }) => 
 
     fetchVideos();
   }, [settings]);
-
-  // ビデオディレクトリが確定したら、Rustサーバーに通知
-  useEffect(() => {
-    if (resolvedVideoDir) {
-      invoke<void>('set_video_dir', { dir: resolvedVideoDir })
-        .then(() => {
-          logWarn('LOCAL_VIDEO', 'Video directory set on server', { dir: resolvedVideoDir });
-        })
-        .catch((error) => {
-          logError('LOCAL_VIDEO', 'Failed to set video dir on server', { error: String(error) });
-        });
-    }
-  }, [resolvedVideoDir]);
 
   return (
     <div className="flex flex-col w-full h-full overflow-hidden">
