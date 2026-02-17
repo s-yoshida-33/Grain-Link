@@ -16,8 +16,6 @@ export const useAutoUpdate = () => {
     message: '',
   });
 
-  const [update, setUpdate] = useState<any>(null);
-
   useEffect(() => {
     const checkForUpdates = async () => {
       try {
@@ -30,19 +28,17 @@ export const useAutoUpdate = () => {
         logWarn('UPDATER', 'Checking for app updates');
 
         // Tauri's built-in updater check
-        const updateInfo = await check();
+        const updateInfo = await check() as any;
 
-        if (updateInfo?.shouldUpdate) {
+        if (updateInfo) {
           logWarn('UPDATER', 'Update available', {
-            currentVersion: updateInfo.currentVersion,
-            latestVersion: updateInfo.latestVersion,
+            version: updateInfo.manifest?.version || 'unknown',
           });
 
-          setUpdate(updateInfo);
           setUpdateStatus({
             status: 'available',
             progress: 0,
-            message: `新しいバージョンが利用可能です (${updateInfo.latestVersion})`,
+            message: `新しいバージョンが利用可能です (${updateInfo.manifest?.version || 'Latest'})`,
           });
 
           // 自動的にダウンロード開始
