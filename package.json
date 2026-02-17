@@ -19,6 +19,7 @@
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
     "tauri:build:signed": "powershell -ExecutionPolicy Bypass -File ./build/sign-and-build.ps1",
+    "media:compress": "powershell -ExecutionPolicy Bypass -File ./build/compress-media.ps1 -MallId sakaikitahanada",
     "desktop:dev": "tauri dev",
     "desktop:build": "tauri build"
   },
