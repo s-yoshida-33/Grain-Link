@@ -2,7 +2,9 @@
 
 use serde::{Deserialize, Serialize};
 use std::fs;
+use std::fs::OpenOptions;
 use std::io::Write;
+use chrono::Local;
 
 #[derive(Serialize, Deserialize)]
 struct FetchResponse {
@@ -14,6 +16,60 @@ struct FetchResponse {
 struct DownloadResponse {
     success: bool,
     message: String,
+}
+
+#[derive(Serialize, Deserialize)]
+struct LogResponse {
+    success: bool,
+    message: String,
+}
+
+/// Get the log directory path
+fn get_log_dir() -> Result<std::path::PathBuf, String> {
+    let app_data = dirs::data_local_dir()
+        .ok_or("Failed to get local data directory")?
+        .join("grain-link")
+        .join("logs");
+
+    fs::create_dir_all(&app_data)
+        .map_err(|e| format!("Failed to create log directory: {}", e))?;
+
+    Ok(app_data)
+}
+
+/// Get today's log file path
+fn get_log_file_path() -> Result<std::path::PathBuf, String> {
+    let log_dir = get_log_dir()?;
+    let today = Local::now().format("%Y-%m-%d").to_string();
+    Ok(log_dir.join(format!("grain-link-{}.log", today)))
+}
+
+#[tauri::command]
+fn write_log(level: String, tag: String, message: String, context: Option<String>) -> Result<LogResponse, String> {
+    let timestamp = Local::now().format("%Y-%m-%d %H:%M:%S%.3f").to_string();
+    
+    let context_str = context.unwrap_or_default();
+    let log_entry = if context_str.is_empty() {
+        format!("[{}] [{}] [{}] {}\n", timestamp, level, tag, message)
+    } else {
+        format!("[{}] [{}] [{}] {} | {}\n", timestamp, level, tag, message, context_str)
+    };
+
+    // ログファイルに追記
+    let log_file_path = get_log_file_path()?;
+    let mut file = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&log_file_path)
+        .map_err(|e| format!("Failed to open log file: {}", e))?;
+
+    file.write_all(log_entry.as_bytes())
+        .map_err(|e| format!("Failed to write log: {}", e))?;
+
+    Ok(LogResponse {
+        success: true,
+        message: format!("Logged to {}", log_file_path.display()),
+    })
 }
 
 #[tauri::command]
@@ -119,7 +175,8 @@ fn main() {
             fetch_shops_proxy,
             read_image_file,
             read_video_file,
-            download_media
+            download_media,
+            write_log
         ]);
 
     let app = builder

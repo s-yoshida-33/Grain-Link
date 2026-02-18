@@ -27,8 +27,13 @@ export const useAutoUpdate = () => {
 
         logWarn('UPDATER', 'Checking for app updates');
 
-        // Tauri's built-in updater check
-        const updateInfo = await check() as any;
+        // タイムアウト機制を追加（30秒以内に完了しなければエラー）
+        const checkPromise = check() as Promise<any>;
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Update check timeout')), 30000)
+        );
+
+        const updateInfo = await Promise.race([checkPromise, timeoutPromise]);
 
         if (updateInfo) {
           logWarn('UPDATER', 'Update available', {
@@ -52,9 +57,18 @@ export const useAutoUpdate = () => {
           });
         }
       } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
         logError('UPDATER', 'Failed to check for updates', {
-          error: error instanceof Error ? error.message : String(error),
+          error: errorMessage,
+          timestamp: new Date().toISOString(),
         });
+
+        // タイムアウトか通信エラーかを区別してログ
+        if (errorMessage.includes('timeout')) {
+          logError('UPDATER', 'Update check timed out - possible network issue or DNS resolution problem');
+        } else if (errorMessage.includes('certificate') || errorMessage.includes('SSL')) {
+          logError('UPDATER', 'SSL/Certificate error - check network configuration');
+        }
 
         setUpdateStatus({
           status: 'error',
@@ -77,17 +91,21 @@ export const useAutoUpdate = () => {
 
       logWarn('UPDATER', 'Starting update download');
 
-      // Download the update
-      await updateInfo.downloadAndInstall(
+      // ダウンロード開始時刻を記録
+      const downloadStartTime = Date.now();
+
+      // Download the update with timeout protection (10 minutes)
+      const downloadPromise = updateInfo.downloadAndInstall(
         new (class {
           finish() {
+            const downloadTime = (Date.now() - downloadStartTime) / 1000;
+            logWarn('UPDATER', 'Update ready to install', { duration: `${downloadTime}s` });
+            
             setUpdateStatus({
               status: 'ready',
               progress: 100,
               message: 'アップデートレディ。再起動するとアップデートが适用されます。',
             });
-
-            logWarn('UPDATER', 'Update ready to install');
           }
 
           progress(payload: any) {
@@ -102,10 +120,22 @@ export const useAutoUpdate = () => {
           }
         })()
       );
+
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Update download timeout - took too long')), 600000) // 10分
+      );
+
+      await Promise.race([downloadPromise, timeoutPromise]);
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
       logError('UPDATER', 'Failed to download/install update', {
-        error: error instanceof Error ? error.message : String(error),
+        error: errorMessage,
+        timestamp: new Date().toISOString(),
       });
+
+      if (errorMessage.includes('timeout')) {
+        logError('UPDATER', 'Download timeout - possible slow/unstable network connection');
+      }
 
       setUpdateStatus({
         status: 'error',
