@@ -56,44 +56,22 @@ if (-not (Test-Path $releaseDir)) {
     Write-Host "[+] Release directory created" -ForegroundColor Green
 }
 
-# Copy setup files and signatures to release directory
-if ($setupExe) {
-    $setupName = Split-Path -Leaf $setupExe.FullName
-    Write-Host "[*] Setup file: $setupName" -ForegroundColor Cyan
-    
-    # Copy setup file
-    Copy-Item $setupExe.FullName -Destination $releaseDir -Force
-    Write-Host "[+] $setupName copied" -ForegroundColor Green
-    
-    # Copy signature file
-    $sigFile = "$($setupExe.FullName).sig"
-    if (Test-Path $sigFile) {
-        $sigName = Split-Path -Leaf $sigFile
-        Copy-Item $sigFile -Destination $releaseDir -Force
-        Write-Host "[+] $sigName copied" -ForegroundColor Green
-    } else {
-        Write-Host "[!] Signature file not found: $sigFile" -ForegroundColor Yellow
+# Clean up old unrenamed installer files from release directory
+Write-Host "[*] Cleaning up old unrenamed installer files..." -ForegroundColor Yellow
+$oldPatterns = @("*-setup.exe", "*-setup.exe.sig", "*.msi", "*.msi.sig")
+foreach ($pattern in $oldPatterns) {
+    # Skip the renamed files (GrainLinkSetup-x64-*.exe, GrainLinkSetup-x64-*.msi)
+    Get-ChildItem $releaseDir -Filter $pattern -ErrorAction SilentlyContinue | Where-Object {
+        -not ($_.Name -like "GrainLinkSetup-*")
+    } | ForEach-Object {
+        Remove-Item $_.FullName -Force
+        Write-Host "[+] Removed: $($_.Name)" -ForegroundColor Green
     }
 }
 
-if ($msiFile) {
-    $msiName = Split-Path -Leaf $msiFile.FullName
-    Write-Host "[*] MSI file: $msiName" -ForegroundColor Cyan
-    
-    # Copy MSI file
-    Copy-Item $msiFile.FullName -Destination $releaseDir -Force
-    Write-Host "[+] $msiName copied" -ForegroundColor Green
-    
-    # Copy MSI signature file
-    $sigFile = "$($msiFile.FullName).sig"
-    if (Test-Path $sigFile) {
-        $sigName = Split-Path -Leaf $sigFile
-        Copy-Item $sigFile -Destination $releaseDir -Force
-        Write-Host "[+] $sigName copied" -ForegroundColor Green
-    } else {
-        Write-Host "[!] Signature file not found: $sigFile" -ForegroundColor Yellow
-    }
-}
+# Note: sign-and-build.ps1 already copies and renames files to release directory
+# This script only updates metadata and manages additional files if needed
+Write-Host "[*] Renamed installer files already handled by sign-and-build.ps1" -ForegroundColor Cyan
 
 # Check latest.yml (if not already copied by sign-and-build.ps1)
 $latestYml = Join-Path $releaseDir "latest.yml"

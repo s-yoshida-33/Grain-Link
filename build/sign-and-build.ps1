@@ -293,5 +293,37 @@ Write-Host ("=" * 60) -ForegroundColor Cyan
 Write-Host "[+] Release directory contents:" -ForegroundColor Green
 Get-ChildItem -Path $releaseDir -File | ForEach-Object { Write-Host "  $($_.Name) ($([math]::Round($_.Length / 1MB, 2)) MB)" -ForegroundColor Green }
 
+# Clean up old unrenamed files from previous builds
+Write-Host "[*] Cleaning up old unrenamed installer files from previous builds..." -ForegroundColor Yellow
+
+# Remove all non-standardized setup files (not starting with GrainLinkSetup)
+Get-ChildItem -Path "$releaseDir\*.exe" -ErrorAction SilentlyContinue | Where-Object {
+    -not ($_.Name -like "GrainLinkSetup-*")
+} | ForEach-Object {
+    Remove-Item $_.FullName -Force -ErrorAction SilentlyContinue
+    Write-Host "[+] Removed: $($_.Name)" -ForegroundColor Green
+}
+
+# Remove all non-standardized MSI files
+Get-ChildItem -Path "$releaseDir\*.msi" -ErrorAction SilentlyContinue | Where-Object {
+    -not ($_.Name -like "GrainLinkSetup-*")
+} | ForEach-Object {
+    Remove-Item $_.FullName -Force -ErrorAction SilentlyContinue
+    Write-Host "[+] Removed: $($_.Name)" -ForegroundColor Green
+}
+
+# Remove orphaned signature files for non-standardized installers
+Get-ChildItem -Path "$releaseDir\*.sig" -ErrorAction SilentlyContinue | ForEach-Object {
+    $baseName = $_.BaseName
+    $exe = Get-ChildItem -Path "$releaseDir\$baseName" -ErrorAction SilentlyContinue
+    if (-not $exe) {
+        Remove-Item $_.FullName -Force -ErrorAction SilentlyContinue
+        Write-Host "[+] Removed orphaned signature: $($_.Name)" -ForegroundColor Green
+    }
+}
+
+Write-Host "[+] Final release directory contents:" -ForegroundColor Green
+Get-ChildItem -Path $releaseDir -File | ForEach-Object { Write-Host "  $($_.Name) ($([math]::Round($_.Length / 1MB, 2)) MB)" -ForegroundColor Green }
+
 Write-Host "[+] Signed build completed successfully!" -ForegroundColor Green
 Write-Host "[*] Release files: $releaseDir" -ForegroundColor Green
