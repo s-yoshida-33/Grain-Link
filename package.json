@@ -1,10 +1,12 @@
-{
+﻿{
   "name": "grain-link",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.2.1",
   "type": "module",
   "description": "Grain Link Application",
   "author": "Toei Techno International Inc.",
+  "license": "UNLICENSED",
+  "copyright": "? 2026 Toei Techno International Inc.",
   "repository": {
     "type": "git",
     "url": "https://github.com/s-yoshida-33/Grain-Link.git"
@@ -22,7 +24,8 @@
     "tauri:release": "npm run tauri:build:signed && powershell -ExecutionPolicy Bypass -File ./build/manage-release.ps1",
     "media:compress": "powershell -ExecutionPolicy Bypass -File ./build/compress-media.ps1 -MallId sakaikitahanada",
     "desktop:dev": "tauri dev",
-    "desktop:build": "tauri build"
+    "desktop:build": "tauri build",
+    "bump:version": "powershell -ExecutionPolicy Bypass -File ./build/bump-version.ps1"
   },
   "dependencies": {
     "@tauri-apps/plugin-dialog": "^2.0.0",

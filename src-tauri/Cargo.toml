@@ -1,25 +1,26 @@
-[package]
+﻿[package]
 name = "grain-link"
-version = "0.0.0"
+version = "0.2.1"
 description = "Grain Link Tauri application"
 authors = ["Toei Techno International Inc."]
+license = "UNLICENSED"
 edition = "2021"
-rust-version = "1.70"
+rust-version = "0.2.1"
 
 [build-dependencies]
-tauri-build = { version = "2", features = [] }
+tauri-build = { version = "0.2.1", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = ["protocol-asset"] }
+tauri = { version = "0.2.1", features = ["protocol-asset"] }
 tauri-plugin-fs = "2"
 tauri-plugin-process = "2"
 tauri-plugin-dialog = "2"
 tauri-plugin-http = "2"
 tauri-plugin-updater = "2"
-serde = { version = "1", features = ["derive"] }
+serde = { version = "0.2.1", features = ["derive"] }
 serde_json = "1"
-tokio = { version = "1", features = ["full"] }
-reqwest = { version = "0.11", features = ["blocking", "json"] }
+tokio = { version = "0.2.1", features = ["full"] }
+reqwest = { version = "0.2.1", features = ["blocking", "json"] }
 dirs = "5.0"
 
 
@@ -29,3 +30,6 @@ codegen-units = 1
 lto = true
 strip = true
 opt-level = "z"
+
+
+
