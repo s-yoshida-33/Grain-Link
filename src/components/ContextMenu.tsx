@@ -34,8 +34,12 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ children }) => {
   }, [hideMenu]);
 
   const reloadApp = useCallback(() => {
-    window.location.reload();
-  }, []);
+    // ページ全体をリロードする代わりに、
+    // カスタムイベントを発火させて現在の画面をリロード
+    const event = new CustomEvent('reload-current-view');
+    window.dispatchEvent(event);
+    hideMenu();
+  }, [hideMenu]);
 
   const quitApp = useCallback(async () => {
     await exit(0);

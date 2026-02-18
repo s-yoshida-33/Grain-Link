@@ -85,6 +85,8 @@ export const VideoSignageView: React.FC<VideoSignageViewProps> = ({ shops }) => 
         }
 
         // 3) Local (AppLocalData) 配下の標準パス: videos
+        // appLocalDataDir() はすでに com.tti.grain-link を指しているので、
+        // そこに videos サブディレクトリがあるはず
         const localDir = await appLocalDataDir();
         const localTarget = await join(localDir, 'videos');
         candidates.push({

@@ -87,6 +87,20 @@ export const GidoApp: React.FC = () => {
     };
   }, [settings, loadShops]);
 
+  // 右クリックリロードイベントのリスナー
+  useEffect(() => {
+    const handleReloadCurrentView = () => {
+      logInfo('UI_NAVIGATION', 'Reload event triggered via context menu');
+      loadShops();
+    };
+
+    window.addEventListener('reload-current-view', handleReloadCurrentView);
+
+    return () => {
+      window.removeEventListener('reload-current-view', handleReloadCurrentView);
+    };
+  }, [loadShops]);
+
   if (settingsLoading || !settings) {
     return <div className="flex items-center justify-center h-screen">Loading settings...</div>;
   }
