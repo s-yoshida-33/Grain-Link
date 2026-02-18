@@ -224,6 +224,34 @@ if ($msiFile) {
 # Generate latest.yml
 Write-Host "[*] Generating latest.yml..." -ForegroundColor Cyan
 
+# Helper function to calculate SHA512 hash
+function Get-SHA512Hash {
+    param([string]$FilePath)
+    
+    # Try using Get-FileHash first (available in PowerShell 5+)
+    try {
+        $hash = (Get-FileHash $FilePath -Algorithm SHA512 -ErrorAction Stop).Hash
+        return $hash.ToLower()
+    }
+    catch {
+        # Fallback to certUtil if Get-FileHash is not available
+        try {
+            $output = & certutil -hashfile $FilePath SHA512
+            if ($output) {
+                # certUtil output format: "SHA512 hash of <file>:" followed by space-separated hash
+                $hashLine = $output | Select-String -Pattern '^[A-Fa-f0-9]+'
+                if ($hashLine) {
+                    return $hashLine.Matches[0].Value.ToLower()
+                }
+            }
+        }
+        catch {
+            Write-Host "[-] Failed to calculate hash for $FilePath" -ForegroundColor Red
+            return ""
+        }
+    }
+}
+
 $latestYmlPath = Join-Path $releaseDir "latest.yml"
 $yamlContent = "version: $version`n"
 $yamlContent += "files:`n"
@@ -232,9 +260,11 @@ $yamlContent += "files:`n"
 if ($exeFile) {
     $exeNewPath = Join-Path $releaseDir $exeNewName
     if (Test-Path $exeNewPath) {
-        $exeSha512 = (Get-FileHash $exeNewPath -Algorithm SHA512).Hash
-        $yamlContent += "  - url: $exeNewName`n"
-        $yamlContent += "    sha512: $exeSha512`n"
+        $exeSha512 = Get-SHA512Hash $exeNewPath
+        if ($exeSha512) {
+            $yamlContent += "  - url: $exeNewName`n"
+            $yamlContent += "    sha512: $exeSha512`n"
+        }
     }
 }
 
@@ -242,9 +272,11 @@ if ($exeFile) {
 if ($msiFile) {
     $msiNewPath = Join-Path $releaseDir $msiNewName
     if (Test-Path $msiNewPath) {
-        $msiSha512 = (Get-FileHash $msiNewPath -Algorithm SHA512).Hash
-        $yamlContent += "  - url: $msiNewName`n"
-        $yamlContent += "    sha512: $msiSha512`n"
+        $msiSha512 = Get-SHA512Hash $msiNewPath
+        if ($msiSha512) {
+            $yamlContent += "  - url: $msiNewName`n"
+            $yamlContent += "    sha512: $msiSha512`n"
+        }
     }
 }
 
