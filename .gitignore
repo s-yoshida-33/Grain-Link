@@ -2,7 +2,6 @@ tmp/
 node_modules/
 dist/
 release/
-build/
 .DS_Store
 *.logs
 src-tauri/target/
