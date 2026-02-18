@@ -1,4 +1,4 @@
-﻿{
+{
   "name": "grain-link",
   "private": true,
   "version": "0.2.2",
@@ -6,7 +6,7 @@
   "description": "Grain Link Application",
   "author": "Toei Techno International Inc.",
   "license": "UNLICENSED",
-  "copyright": "? 2026 Toei Techno International Inc.",
+  "copyright": "© 2026 Toei Techno International Inc.",
   "repository": {
     "type": "git",
     "url": "https://github.com/s-yoshida-33/Grain-Link.git"

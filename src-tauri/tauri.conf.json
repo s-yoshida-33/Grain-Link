@@ -1,4 +1,4 @@
-﻿{
+{
   "$schema": "https://schema.tauri.app/config/2",
   "identifier": "com.tti.grain-link",
   "productName": "Grain Link",
@@ -57,7 +57,7 @@
       "icons/icon.ico"
     ],
     "publisher": "Toei Techno International Inc.",
-    "copyright": "? 2026 Toei Techno International Inc."
+    "copyright": "© 2026 Toei Techno International Inc."
   },
   "plugins": {
     "updater": {
