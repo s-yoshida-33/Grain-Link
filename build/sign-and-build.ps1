@@ -192,33 +192,17 @@ if ($msiFile) {
     }
 }
 
-# Copy installer files to release
+# Copy installer files to release with new names
 if ($exeFile) {
-    Copy-Item $exeFile.FullName -Destination $releaseDir -Force
-    Write-Host "[+] EXE file copied to release" -ForegroundColor Green
-    
-    # Rename to GrainLinkSetup-x64-{version}.exe (using predefined variable)
     $exeNewPath = Join-Path $releaseDir $exeNewName
-    $exeCurrentPath = Join-Path $releaseDir (Split-Path -Leaf $exeFile.FullName)
-    
-    if (Test-Path $exeCurrentPath) {
-        Move-Item -Path $exeCurrentPath -Destination $exeNewPath -Force
-        Write-Host "[+] EXE renamed to: $exeNewName" -ForegroundColor Green
-    }
+    Copy-Item $exeFile.FullName -Destination $exeNewPath -Force
+    Write-Host "[+] EXE file copied and renamed to: $exeNewName" -ForegroundColor Green
 }
 
 if ($msiFile) {
-    Copy-Item $msiFile.FullName -Destination $releaseDir -Force
-    Write-Host "[+] MSI file copied to release" -ForegroundColor Green
-    
-    # Rename to GrainLinkSetup-x64-{version}-en-US.msi (using predefined variable)
     $msiNewPath = Join-Path $releaseDir $msiNewName
-    $msiCurrentPath = Join-Path $releaseDir (Split-Path -Leaf $msiFile.FullName)
-    
-    if (Test-Path $msiCurrentPath) {
-        Move-Item -Path $msiCurrentPath -Destination $msiNewPath -Force
-        Write-Host "[+] MSI renamed to: $msiNewName" -ForegroundColor Green
-    }
+    Copy-Item $msiFile.FullName -Destination $msiNewPath -Force
+    Write-Host "[+] MSI file copied and renamed to: $msiNewName" -ForegroundColor Green
 }
 
 # Generate latest.yml

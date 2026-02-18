@@ -36,7 +36,7 @@ export const BootScreen: React.FC<BootScreenProps> = ({ onBootComplete }) => {
 
   // ステージ 2: アップデート待機
   useEffect(() => {
-    if (currentStage === 'update-check' && (isUpdateReady || skipUpdate) && updateStatus.status === 'idle') {
+    if (currentStage === 'update-check' && (isUpdateReady || skipUpdate) && (updateStatus.status === 'idle' || updateStatus.status === 'error')) {
       logInfo('BOOT', 'Update stage completed');
       setShowUpdateDialog(false);
       setCurrentStage('media-check');

@@ -77,10 +77,10 @@ jobs:
         with:
           files: |
             release/latest.yml
-            release/*.exe
-            release/*.exe.sig
-            release/*.msi
-            release/*.msi.sig
+            release/GrainLinkSetup-x64-*.exe
+            release/GrainLinkSetup-x64-*.exe.sig
+            release/GrainLinkSetup-x64-*.msi
+            release/GrainLinkSetup-x64-*.msi.sig
           token: ${{ secrets.GITHUB_TOKEN }}
 
   verify-release:
