@@ -2,123 +2,143 @@ param(
     [string]$Version = ""
 )
 
-# Set UTF-8 encoding
+# Output setting
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-
-# Stop on error
 $ErrorActionPreference = "Stop"
 
 Write-Host "[*] Release file management script starting..." -ForegroundColor Cyan
 
-# Setup directories - correctly get root directory
+# --- Directory Setup ---
 $rootDir = Split-Path -Parent $PSScriptRoot
 $releaseDir = Join-Path $rootDir "release"
-$bundleDir = Join-Path $rootDir "src-tauri\target\release\bundle"
+$srcTauriDir = Join-Path $rootDir "src-tauri"
+$tauriConfPath = Join-Path $srcTauriDir "tauri.conf.json"
 
-# Get configuration info from tauri.conf.json
-$tauriConfPath = Join-Path $rootDir "src-tauri\tauri.conf.json"
+# --- 1. Get Version ---
+Write-Host "[*] Step 1: Reading tauri.conf.json..." -ForegroundColor Gray
 if (Test-Path $tauriConfPath) {
-    $tauriConf = Get-Content $tauriConfPath -Raw | ConvertFrom-Json
-    $version = $tauriConf.version
-    $identifier = $tauriConf.identifier
-    $publisher = $tauriConf.bundle.publisher
-    $copyright = $tauriConf.bundle.copyright
-    
-    Write-Host "[*] Application identifier: $identifier" -ForegroundColor Cyan
-    Write-Host "[*] Version: $version" -ForegroundColor Cyan
-    Write-Host "[*] Publisher: $publisher" -ForegroundColor Cyan
-    Write-Host "[*] Copyright: $copyright" -ForegroundColor Cyan
-}
-
-# Check if bundle directory exists
-if (-not (Test-Path $bundleDir)) {
-    Write-Host "[!] Error: Bundle directory not found: $bundleDir" -ForegroundColor Red
-    exit 1
-}
-
-Write-Host "[*] Release directory: $releaseDir" -ForegroundColor Cyan
-Write-Host "[*] Bundle directory: $bundleDir" -ForegroundColor Cyan
-
-# Detect installer files
-$setupExe = Get-ChildItem $bundleDir -Filter "*-setup.exe" -Recurse | Select-Object -First 1
-$msiFile = Get-ChildItem $bundleDir -Filter "*.msi" -Recurse | Select-Object -First 1
-
-if (-not $setupExe -and -not $msiFile) {
-    Write-Host "[!] Error: No setup files found" -ForegroundColor Red
-    exit 1
-}
-
-Write-Host "[+] Installer files detected" -ForegroundColor Green
-
-# Create release directory
-if (-not (Test-Path $releaseDir)) {
-    New-Item -ItemType Directory -Path $releaseDir | Out-Null
-    Write-Host "[+] Release directory created" -ForegroundColor Green
-}
-
-# Clean up old unrenamed installer files from release directory
-Write-Host "[*] Cleaning up old unrenamed installer files..." -ForegroundColor Yellow
-$oldPatterns = @("*-setup.exe", "*-setup.exe.sig", "*.msi", "*.msi.sig")
-foreach ($pattern in $oldPatterns) {
-    # Skip the renamed files (GrainLinkSetup-x64-*.exe, GrainLinkSetup-x64-*.msi)
-    Get-ChildItem $releaseDir -Filter $pattern -ErrorAction SilentlyContinue | Where-Object {
-        -not ($_.Name -like "GrainLinkSetup-*")
-    } | ForEach-Object {
-        Remove-Item $_.FullName -Force
-        Write-Host "[+] Removed: $($_.Name)" -ForegroundColor Green
+    try {
+        $tauriConfContent = [System.IO.File]::ReadAllText($tauriConfPath, [System.Text.Encoding]::UTF8)
+        $tauriConf = $tauriConfContent | ConvertFrom-Json
+        $version = $tauriConf.version
+        Write-Host "[*] Detected Version: $version" -ForegroundColor Cyan
+    } catch {
+        Write-Host "[!] Error reading config: $_" -ForegroundColor Red
+        exit 1
     }
+} else {
+    Write-Host "[!] Error: tauri.conf.json not found." -ForegroundColor Red
+    exit 1
 }
 
-# Note: sign-and-build.ps1 already copies and renames files to release directory
-# This script only updates metadata and manages additional files if needed
-Write-Host "[*] Renamed installer files already handled by sign-and-build.ps1" -ForegroundColor Cyan
+# --- 2. Check Release Dir ---
+Write-Host "[*] Step 2: Checking release directory..." -ForegroundColor Gray
+if (-not (Test-Path $releaseDir)) {
+    Write-Host "[!] Error: Release directory not found: $releaseDir" -ForegroundColor Red
+    exit 1
+}
 
-# Check latest.yml (if not already copied by sign-and-build.ps1)
-$latestYml = Join-Path $releaseDir "latest.yml"
-if (-not (Test-Path $latestYml)) {
-    Write-Host "[*] latest.yml not in release dir, searching in bundle..." -ForegroundColor Yellow
+# --- 3. Find Installer ---
+Write-Host "[*] Step 3: Finding installer for version $version..." -ForegroundColor Gray
+$targetExeName = "GrainLinkSetup-x64-${version}.exe"
+$exeFile = Get-ChildItem $releaseDir -Filter $targetExeName | Select-Object -First 1
+
+if (-not $exeFile) {
+    Write-Host "[!] Error: Installer ($targetExeName) not found." -ForegroundColor Red
+    Write-Host "[!] Files in release dir:" 
+    Get-ChildItem $releaseDir | ForEach-Object { Write-Host "   - $($_.Name)" }
+    exit 1
+}
+Write-Host "[+] Found Installer: $($exeFile.Name)" -ForegroundColor Green
+
+# --- 4. Find Signature ---
+Write-Host "[*] Step 4: Finding signature file..." -ForegroundColor Gray
+$targetSigName = "${targetExeName}.sig"
+$sigFile = Get-ChildItem $releaseDir -Filter $targetSigName | Select-Object -First 1
+
+if (-not $sigFile) {
+    # Fallback search
+    Write-Host "[*] Specific signature not found, checking fallback patterns..." -ForegroundColor Yellow
+    $sigFile = Get-ChildItem $releaseDir -Filter "*-setup.exe.sig" | Select-Object -First 1
+}
+
+if (-not $sigFile) {
+    Write-Host "[!] Error: Signature file not found." -ForegroundColor Red
+    exit 1
+}
+Write-Host "[+] Found Signature file: $($sigFile.Name)" -ForegroundColor Green
+
+# --- 5. Read & Decode Signature (CRITICAL FIX) ---
+Write-Host "[*] Step 5: Reading and processing signature content..." -ForegroundColor Gray
+try {
+    # Read the raw content from file
+    $rawContent = [System.IO.File]::ReadAllText($sigFile.FullName, [System.Text.Encoding]::UTF8).Trim()
     
-    $possibleLocations = @(
-        (Join-Path $bundleDir "latest.yml"),
-        (Join-Path $bundleDir "msi\latest.yml"),
-        (Join-Path $bundleDir "nsis\latest.yml")
-    )
-    
-    foreach ($location in $possibleLocations) {
-        if (Test-Path $location) {
-            Write-Host "[+] Found latest.yml at: $location" -ForegroundColor Green
-            Copy-Item $location -Destination $releaseDir -Force
-            Write-Host "[+] Copied to release directory" -ForegroundColor Green
-            break
+    if ([string]::IsNullOrWhiteSpace($rawContent)) {
+        throw "Signature file is empty"
+    }
+
+    # Check if decoding is needed (Does it look like Base64 and NOT start with 'untrusted')
+    if (-not ($rawContent -match "^untrusted comment:")) {
+        Write-Host "[*] Signature appears to be Base64 encoded. Decoding..." -ForegroundColor Yellow
+        try {
+            $bytes = [System.Convert]::FromBase64String($rawContent)
+            $signatureContent = [System.Text.Encoding]::UTF8.GetString($bytes)
+            Write-Host "[+] Successfully decoded Base64 signature." -ForegroundColor Green
+        } catch {
+            Write-Host "[!] Warning: Base64 decode failed. Using raw content." -ForegroundColor Yellow
+            $signatureContent = $rawContent
+        }
+    } else {
+        Write-Host "[+] Signature is already plain text." -ForegroundColor Green
+        $signatureContent = $rawContent
+    }
+
+} catch {
+    Write-Host "[!] Error processing signature file: $_" -ForegroundColor Red
+    exit 1
+}
+
+# --- 6. Create JSON Data ---
+Write-Host "[*] Step 6: Constructing JSON data..." -ForegroundColor Gray
+$pubDate = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
+$downloadUrl = "https://github.com/s-yoshida-33/Grain-Link/releases/download/v${version}/$($exeFile.Name)"
+
+$jsonObj = @{
+    version = $version
+    notes = "Update for version ${version}"
+    pub_date = $pubDate
+    platforms = @{
+        "windows-x86_64" = @{
+            signature = $signatureContent
+            url = $downloadUrl
         }
     }
 }
 
-if (Test-Path $latestYml) {
-    Write-Host "[*] latest.yml content:" -ForegroundColor Cyan
-    Write-Host ("=" * 60)
-    Get-Content $latestYml | Write-Host
-    Write-Host ("=" * 60)
+# --- 7. Write latest.json ---
+Write-Host "[*] Step 7: Saving latest.json..." -ForegroundColor Gray
+try {
+    $jsonContent = $jsonObj | ConvertTo-Json -Depth 10
+    $jsonContent = $jsonContent -replace '    ', '  ' # Pretty print
     
-    # Check for signature info
-    $ymlContent = Get-Content $latestYml -Raw
-    if ($ymlContent -match "signature") {
-        Write-Host "[+] Signature info found" -ForegroundColor Green
+    $latestJsonPath = Join-Path $releaseDir "latest.json"
+    [System.IO.File]::WriteAllText($latestJsonPath, $jsonContent, [System.Text.UTF8Encoding]::new($false))
+    
+    Write-Host "[+] Successfully created latest.json" -ForegroundColor Green
+    Write-Host "[*] Path: $latestJsonPath" -ForegroundColor Cyan
+    
+    # Preview checks
+    if ($signatureContent -match "^untrusted comment:") {
+        Write-Host "[OK] JSON signature format is correct (Plain text)." -ForegroundColor Green
     } else {
-        Write-Host "[!] Signature info not found" -ForegroundColor Yellow
+        Write-Host "[WARN] JSON signature might still be Base64. Check output." -ForegroundColor Yellow
     }
-} else {
-    Write-Host "[!] latest.yml not found" -ForegroundColor Yellow
-}
 
-# List release directory files
-Write-Host ""
-Write-Host "[*] Files in release directory:" -ForegroundColor Cyan
-Get-ChildItem $releaseDir -File | ForEach-Object {
-    $size = "{0:N0}" -f $_.Length
-    Write-Host "  - $($_.Name) ($size bytes)" -ForegroundColor Green
+} catch {
+    Write-Host "[!] Error writing JSON file: $_" -ForegroundColor Red
+    exit 1
 }
 
 Write-Host ""
-Write-Host "[+] Release file management completed!" -ForegroundColor Green
-Write-Host "[*] Release directory: $releaseDir" -ForegroundColor Green
+Write-Host "[+] Release preparation completed!" -ForegroundColor Green
