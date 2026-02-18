@@ -26,13 +26,21 @@
     "security": {
       "assetProtocol": {
         "enable": true,
-        "scope": [
-          "**"
-        ]
+        "scope": ["**"]
       },
       "csp": "default-src 'self' http://localhost:8090; img-src 'self' asset: https://asset.localhost http://asset.localhost http://localhost:8090 https: http: data: blob:; media-src 'self' asset: https://asset.localhost http://asset.localhost https: http: data: blob:; connect-src 'self' http://localhost:8090 http: https: ws:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' 'unsafe-eval';",
       "capabilities": [
         "default",
+        {
+          "identifier": "app-fs-scope",
+          "windows": ["main"],
+          "permissions": [
+            {
+              "identifier": "fs:scope",
+              "allow": ["$APPDATA/com.tti.grain-link/**", "$HOME/**", "C:\\dev\\**"]
+            }
+          ]
+        },
         {
           "identifier": "updater-capability",
           "windows": ["main"],
@@ -46,18 +54,14 @@
   },
   "bundle": {
     "active": true,
-    "icon": [
-      "icons/icon.ico"
-    ],
+    "icon": ["icons/icon.ico"],
     "publisher": "Toei Techno International Inc.",
     "copyright": "© 2026 Toei Techno International Inc."
   },
   "plugins": {
     "updater": {
       "active": true,
-      "endpoints": [
-        "https://api.github.com/repos/s-yoshida-33/Grain-Link/releases/latest"
-      ],
+      "endpoints": ["https://api.github.com/repos/s-yoshida-33/Grain-Link/releases/latest"],
       "dialog": false,
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDM0RDYyMjg5QjRFMTA5NDYKUldSR0NlRzBpU0xXTktBL0FJZzJVbFE0dm9MSUUzcGtaQk12N0hyWUJBNGJ5Y1RGUXVqYzN1bHQK"
     }

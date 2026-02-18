@@ -5,7 +5,6 @@ use std::fs;
 use std::fs::OpenOptions;
 use std::io::Write;
 use chrono::Local;
-use tauri::AppHandle;
 
 #[derive(Serialize, Deserialize)]
 struct FetchResponse {
@@ -25,31 +24,28 @@ struct LogResponse {
     message: String,
 }
 
-/// Get the log directory path using Tauri's app local data directory
-fn get_log_dir(app_handle: &AppHandle) -> Result<std::path::PathBuf, String> {
-    let app_local_data_dir = app_handle
-        .path()
-        .app_local_data_dir()
-        .map_err(|e| format!("Failed to get app local data dir: {}", e))?;
+/// Get the log directory path - unified under com.tti.grain-link
+fn get_log_dir() -> Result<std::path::PathBuf, String> {
+    let app_local_data_dir = dirs::data_local_dir()
+        .ok_or("Failed to get local data directory")?
+        .join("com.tti.grain-link")
+        .join("logs");
     
-    let log_dir = app_local_data_dir.join("logs");
-    
-    fs::create_dir_all(&log_dir)
+    fs::create_dir_all(&app_local_data_dir)
         .map_err(|e| format!("Failed to create log directory: {}", e))?;
 
-    Ok(log_dir)
+    Ok(app_local_data_dir)
 }
 
 /// Get today's log file path
-fn get_log_file_path(app_handle: &AppHandle) -> Result<std::path::PathBuf, String> {
-    let log_dir = get_log_dir(app_handle)?;
+fn get_log_file_path() -> Result<std::path::PathBuf, String> {
+    let log_dir = get_log_dir()?;
     let today = Local::now().format("%Y-%m-%d").to_string();
     Ok(log_dir.join(format!("grain-link-{}.log", today)))
 }
 
 #[tauri::command]
 fn write_log(
-    app_handle: AppHandle,
     level: String,
     tag: String,
     message: String,
@@ -65,7 +61,7 @@ fn write_log(
     };
 
     // ログファイルに追記
-    let log_file_path = get_log_file_path(&app_handle)?;
+    let log_file_path = get_log_file_path()?;
     let mut file = OpenOptions::new()
         .create(true)
         .append(true)
@@ -113,7 +109,6 @@ fn read_video_file(file_path: String) -> Result<Vec<u8>, String> {
 
 #[tauri::command]
 fn download_media(
-    app_handle: AppHandle,
     url: String,
     file_name: String,
     media_type: String,
@@ -123,21 +118,19 @@ fn download_media(
         .map_err(|e| format!("Runtime error: {}", e))?;
 
     rt.block_on(async {
-        download_media_async(app_handle, url, file_name, media_type).await
+        download_media_async(url, file_name, media_type).await
     })
 }
 
 async fn download_media_async(
-    app_handle: AppHandle,
     url: String,
     file_name: String,
     media_type: String,
 ) -> Result<DownloadResponse, String> {
-    // Tauri のアプリケーションローカルデータディレクトリを取得
-    let app_local_data_dir = app_handle
-        .path()
-        .app_local_data_dir()
-        .map_err(|e| format!("Failed to get app local data dir: {}", e))?;
+    // アプリケーションローカルデータディレクトリを取得 - unified under com.tti.grain-link
+    let app_local_data_dir = dirs::data_local_dir()
+        .ok_or("Failed to get local data directory")?
+        .join("com.tti.grain-link");
 
     // メディアタイプに応じてディレクトリを分ける
     let subdir = match media_type.as_str() {
