@@ -11,6 +11,13 @@ param(
 # Stop on error
 $ErrorActionPreference = "Stop"
 
+# Import security module if available (for local development)
+try {
+    Import-Module Microsoft.PowerShell.Security -ErrorAction SilentlyContinue
+} catch {
+    Write-Host "[*] Could not load security module - continuing anyway" -ForegroundColor Yellow
+}
+
 Write-Host "[*] Starting Tauri signed build..." -ForegroundColor Cyan
 
 # Get root directory and paths correctly
@@ -41,7 +48,7 @@ Write-Host "[+] Found private key: $keyPath" -ForegroundColor Green
 
 # Get password
 if (-not $Password) {
-    # Check for password from GitHub Actions
+    # Check for password from GitHub Actions environment variables
     $userPassword = [Environment]::GetEnvironmentVariable('TAURI_SIGNING_PRIVATE_KEY_PASSWORD')
     
     # Fallback to user-level environment variable
@@ -50,21 +57,19 @@ if (-not $Password) {
     }
     
     if ($userPassword) {
-        # Convert environment variable (plain text) to SecureString
-        $Password = ConvertTo-SecureString $userPassword -AsPlainText -Force
+        # Use password directly from environment variable
+        # (GitHub Actions provides it as plain text in secure env var)
         $plainPassword = $userPassword
         Write-Host "[+] Using password from environment variable" -ForegroundColor Green
     } else {
         Write-Host "[?] Enter private key password:" -ForegroundColor Yellow
-        $Password = Read-Host -AsSecureString
+        $securePassword = Read-Host -AsSecureString
+        
+        # Convert SecureString to plain text for Tauri
+        $bstr = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($securePassword)
+        $plainPassword = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($bstr)
+        [System.Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr)
     }
-}
-
-# Convert SecureString to plain text for environment variable (needed by Tauri)
-if ($Password) {
-    $bstr = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($Password)
-    $plainPassword = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($bstr)
-    [System.Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr)
 }
 
 # Set environment variables
