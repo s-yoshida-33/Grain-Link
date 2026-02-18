@@ -41,7 +41,14 @@ Write-Host "[+] Found private key: $keyPath" -ForegroundColor Green
 
 # Get password
 if (-not $Password) {
-    $userPassword = [Environment]::GetEnvironmentVariable('TAURI_SIGNING_PASSWORD_OVERRIDE', 'User')
+    # Check for password from GitHub Actions
+    $userPassword = [Environment]::GetEnvironmentVariable('TAURI_SIGNING_PRIVATE_KEY_PASSWORD')
+    
+    # Fallback to user-level environment variable
+    if (-not $userPassword) {
+        $userPassword = [Environment]::GetEnvironmentVariable('TAURI_SIGNING_PASSWORD_OVERRIDE', 'User')
+    }
+    
     if ($userPassword) {
         # Convert environment variable (plain text) to SecureString
         $Password = ConvertTo-SecureString $userPassword -AsPlainText -Force
