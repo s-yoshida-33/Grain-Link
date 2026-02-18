@@ -1,8 +1,8 @@
-﻿{
+{
   "$schema": "https://schema.tauri.app/config/2",
   "identifier": "com.tti.grain-link",
   "productName": "Grain Link",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "build": {
     "beforeDevCommand": "npm run dev",
     "beforeBuildCommand": "npm run build",
@@ -42,11 +42,10 @@
           ]
         },
         {
-          "identifier": "updater-capability",
+          "identifier": "updater-all",
           "windows": ["main"],
           "permissions": [
-            "plugin:updater|check",
-            "plugin:updater|performUpdate"
+            "updater:default"
           ]
         }
       ]
@@ -56,7 +55,7 @@
     "active": true,
     "icon": ["icons/icon.ico"],
     "publisher": "Toei Techno International Inc.",
-    "copyright": "© 2026 Toei Techno International Inc."
+    "copyright": "ﾂｩ 2026 Toei Techno International Inc."
   },
   "plugins": {
     "updater": {
