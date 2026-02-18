@@ -5,7 +5,7 @@
  * 環境変数を読み込んで PowerShell スクリプトを実行
  */
 
-import { exec } from 'child_process';
+import { spawn } from 'child_process';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import path from 'path';
@@ -15,7 +15,6 @@ const __dirname = dirname(__filename);
 
 const args = process.argv.slice(2);
 const script = args[0] || 'sign-and-build.ps1';
-const additionalArgs = args.slice(1).join(' ');
 
 console.log('[*] Tauri Build Runner');
 console.log(`[*] Script: ${script}`);
@@ -23,17 +22,22 @@ console.log('[*] Reading environment variables...');
 
 // Use absolute path for PowerShell script
 const scriptPath = path.join(__dirname, script);
-const psCommand = `powershell -ExecutionPolicy Bypass -File "${scriptPath}" ${additionalArgs}`;
 
-console.log(`[*] Executing: ${psCommand}`);
+console.log(`[*] Executing: powershell -ExecutionPolicy Bypass -File "${scriptPath}"`);
 console.log('');
 
-exec(psCommand, (error, stdout, stderr) => {
-    if (stdout) console.log(stdout);
-    if (stderr) console.error(stderr);
-    
-    if (error) {
-        console.error(`[!] Error: ${error.message}`);
-        process.exit(1);
+// Use spawn with inherited stdio to avoid hanging
+const ps = spawn('powershell', [
+    '-ExecutionPolicy', 'Bypass',
+    '-File', scriptPath
+], {
+    stdio: 'inherit',
+    shell: true
+});
+
+ps.on('close', (code) => {
+    if (code !== 0) {
+        console.error(`[!] PowerShell exited with code ${code}`);
+        process.exit(code);
     }
 });
