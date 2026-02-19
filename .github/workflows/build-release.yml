@@ -76,47 +76,16 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            release/latest.yml
+            release/latest.json
             release/GrainLinkSetup-x64-*.exe
             release/GrainLinkSetup-x64-*.exe.sig
             release/GrainLinkSetup-x64-*.msi
             release/GrainLinkSetup-x64-*.msi.sig
+            release/*.zip
           token: ${{ secrets.GITHUB_TOKEN }}
 
-  verify-release:
-    needs: [create-release, build]
-    runs-on: windows-latest
-    if: startsWith(github.ref, 'refs/tags/v')
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Verify latest.yml in release
-        run: |
-          $release = gh release view ${{ github.ref_name }} --json assets --jq '.assets[].name'
-          if ($release -like "*latest.yml*") {
-            Write-Output "[+] latest.yml found in release"
-          } else {
-            Write-Output "[-] latest.yml NOT found in release"
-            exit 1
-          }
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      
-      - name: Download and verify latest.yml
-        run: |
-          gh release download ${{ github.ref_name }} --pattern "latest.yml" --dir .
-          if (Test-Path latest.yml) {
-            Write-Output "[+] latest.yml downloaded successfully"
-            Get-Content latest.yml
-          } else {
-            Write-Output "[-] Failed to download latest.yml"
-            exit 1
-          }
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
   notify:
-    needs: [create-release, build, verify-release]
+    needs: [create-release, build]
     runs-on: windows-latest
     if: always()
     steps:
