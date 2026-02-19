@@ -61,7 +61,7 @@ if (-not $sigFile) {
 # --- 5. Read and Decode Signature Content ---
 try {
     $rawContent = [System.IO.File]::ReadAllText($sigFile.FullName, [System.Text.Encoding]::UTF8).Trim()
-    
+
     # Check for Base64 encoding and decode if necessary (Tauri needs raw text signature)
     if (-not ($rawContent -match "^untrusted comment:")) {
         Write-Host "[*] Signature appears to be Base64 encoded. Decoding..." -ForegroundColor Yellow
@@ -70,6 +70,14 @@ try {
     } else {
         $signatureContent = $rawContent
     }
+
+    # Normalize Windows line endings to Unix LF
+    # Tauri's minisign verifier expects LF-only; CRLF causes "Invalid symbol 10" errors
+    $signatureContent = $signatureContent -replace "`r`n", "`n"
+    $signatureContent = $signatureContent -replace "`r", "`n"
+    $signatureContent = $signatureContent.Trim()
+
+    Write-Host "[*] Signature content normalized (line endings: LF)" -ForegroundColor Cyan
 } catch {
     Write-Host "[!] Error processing signature: $_" -ForegroundColor Red
     exit 1

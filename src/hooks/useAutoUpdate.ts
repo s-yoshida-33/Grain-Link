@@ -113,16 +113,14 @@ export const useAutoUpdate = () => {
             });
             break;
           }
-          case 'Finished': {
-            const downloadTime = (Date.now() - downloadStartTime) / 1000;
-            logWarn('UPDATER', 'Update ready to install', { duration: `${downloadTime}s` });
+          case 'Finished':
+            logWarn('UPDATER', 'Download finished, verifying signature...');
             setUpdateStatus({
-              status: 'ready',
+              status: 'downloading',
               progress: 100,
-              message: 'アップデート完了。5秒後に再起動します。',
+              message: '署名を検証中...',
             });
             break;
-          }
         }
       });
 
@@ -131,6 +129,15 @@ export const useAutoUpdate = () => {
       );
 
       await Promise.race([downloadPromise, timeoutPromise]);
+
+      // downloadAndInstall の Promise が解決した = 署名検証もインストールも成功
+      const downloadTime = (Date.now() - downloadStartTime) / 1000;
+      logWarn('UPDATER', 'Update ready to install', { duration: `${downloadTime}s` });
+      setUpdateStatus({
+        status: 'ready',
+        progress: 100,
+        message: 'アップデート完了。5秒後に再起動します。',
+      });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       logError('UPDATER', 'Failed to download/install update', {
