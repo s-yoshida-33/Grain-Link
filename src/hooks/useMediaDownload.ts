@@ -3,7 +3,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { logError, logInfo } from '../logs/logging';
 
 export interface MediaDownloadStatus {
-  // Added 'extracting' status although primarily mapped to 'downloading' in UI for now
+  // Added 'extracting' status, mapped to 'downloading' in UI
   status: 'idle' | 'checking' | 'downloading' | 'extracting' | 'completed' | 'error';
   progress: number; // 0-100
   message: string;
