@@ -1,10 +1,13 @@
+// src/hooks/useAutoUpdate.ts
+
 import { useEffect, useState } from 'react';
 import { check } from '@tauri-apps/plugin-updater';
 import { relaunch } from '@tauri-apps/plugin-process';
 import { logWarn, logError } from '../logs/logging';
 
 export interface UpdateStatus {
-  status: 'idle' | 'checking' | 'available' | 'downloading' | 'ready' | 'error';
+  // 'uptodate' を追加して明確に区別
+  status: 'idle' | 'checking' | 'available' | 'downloading' | 'ready' | 'error' | 'uptodate';
   progress: number; // 0-100
   message: string;
 }
@@ -50,10 +53,11 @@ export const useAutoUpdate = () => {
           await downloadAndInstallUpdate(updateInfo);
         } else {
           logWarn('UPDATER', 'App is up to date');
+          // ステータスを 'uptodate' に変更
           setUpdateStatus({
-            status: 'idle',
+            status: 'uptodate',
             progress: 0,
-            message: '',
+            message: '最新バージョンです',
           });
         }
       } catch (error) {
@@ -63,7 +67,6 @@ export const useAutoUpdate = () => {
           timestamp: new Date().toISOString(),
         });
 
-        // タイムアウトか通信エラーかを区別してログ
         if (errorMessage.includes('timeout')) {
           logError('UPDATER', 'Update check timed out - possible network issue or DNS resolution problem');
         } else if (errorMessage.includes('certificate') || errorMessage.includes('SSL')) {
@@ -91,10 +94,8 @@ export const useAutoUpdate = () => {
 
       logWarn('UPDATER', 'Starting update download');
 
-      // ダウンロード開始時刻を記録
       const downloadStartTime = Date.now();
 
-      // Download the update with timeout protection (10 minutes)
       const downloadPromise = updateInfo.downloadAndInstall(
         new (class {
           finish() {
@@ -104,7 +105,7 @@ export const useAutoUpdate = () => {
             setUpdateStatus({
               status: 'ready',
               progress: 100,
-              message: 'アップデートレディ。再起動するとアップデートが适用されます。',
+              message: 'アップデート完了。5秒後に再起動します。',
             });
           }
 
@@ -122,7 +123,7 @@ export const useAutoUpdate = () => {
       );
 
       const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Update download timeout - took too long')), 600000) // 10分
+        setTimeout(() => reject(new Error('Update download timeout - took too long')), 600000)
       );
 
       await Promise.race([downloadPromise, timeoutPromise]);
