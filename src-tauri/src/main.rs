@@ -191,11 +191,16 @@ fn sync_media_from_zip(url: String) -> Result<DownloadResponse, String> {
 }
 
 async fn download_and_extract_zip(url: String) -> Result<DownloadResponse, String> {
-    // Target directory: AppData/Local/com.tti.grain-link/
-    // The ZIP is expected to contain "images/" and "videos/" folders directly, or flat files.
-    let app_local_data_dir = dirs::data_local_dir()
+    // Target directory: AppData/Local/com.tti.grain-link/videos/
+    // The media ZIP contains video files at the root level (no subdirectory structure).
+    let extract_dir = dirs::data_local_dir()
         .ok_or("Failed to get local data directory")?
-        .join("com.tti.grain-link");
+        .join("com.tti.grain-link")
+        .join("videos");
+
+    // Ensure the videos directory exists
+    fs::create_dir_all(&extract_dir)
+        .map_err(|e| format!("Failed to create videos directory: {}", e))?;
 
     // 1. Download ZIP
     let client = reqwest::Client::new();
@@ -214,14 +219,14 @@ async fn download_and_extract_zip(url: String) -> Result<DownloadResponse, Strin
     let mut archive = ZipArchive::new(reader)
         .map_err(|e| format!("Failed to read zip archive: {}", e))?;
 
-    // 3. Extract files
+    // 3. Extract files into videos directory
     for i in 0..archive.len() {
         let mut file = archive.by_index(i)
             .map_err(|e| format!("Failed to read file in zip: {}", e))?;
-        
+
         // Prevent path traversal attacks
         let outpath = match file.enclosed_name() {
-            Some(path) => app_local_data_dir.join(path),
+            Some(path) => extract_dir.join(path),
             None => continue,
         };
 
