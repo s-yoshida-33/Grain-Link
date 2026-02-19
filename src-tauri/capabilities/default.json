@@ -12,6 +12,12 @@
     "process:default",
     "dialog:default",
     "updater:default",
-    "http:default"
+    {
+      "identifier": "http:default",
+      "allow": [
+        { "url": "https://github.com/**" },
+        { "url": "https://*.githubusercontent.com/**" }
+      ]
+    }
   ]
 }
