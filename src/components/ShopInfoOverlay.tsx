@@ -49,7 +49,7 @@ export const ShopInfoOverlay: React.FC<ShopInfoOverlayProps> = ({ shop }) => {
 
     return (
     <div 
-      className="absolute top-0 left-0 w-full h-full flex flex-col items-center justify-start pt-[60px] p-8 text-center text-[#4b2c20] transition-opacity duration-1000 ease-in-out"
+      className="absolute top-0 left-0 w-full h-full flex flex-col items-center justify-start p-8 text-center text-[#4b2c20] transition-opacity duration-1000 ease-in-out"
       style={{ ...containerStyle, opacity: isActive ? 1 : 0, zIndex: isActive ? 2 : 1 }}
     >
       {!targetShop ? (
@@ -60,7 +60,7 @@ export const ShopInfoOverlay: React.FC<ShopInfoOverlayProps> = ({ shop }) => {
         <div className="flex flex-col items-center w-full h-full">
           
           {/* 1. ロゴ表示エリア */}
-          <div className="relative flex justify-center items-center w-75 h-75 shrink-0">
+          <div className="relative flex justify-center items-center shrink-0" style={{ width: '415px', height: '415px', marginTop: '4px', marginBottom: '30px' }}>
             <img 
               src={logoFrame}
               alt=""
@@ -70,25 +70,26 @@ export const ShopInfoOverlay: React.FC<ShopInfoOverlayProps> = ({ shop }) => {
               <img 
                 src={currentLogo} 
                 alt={`${displayName} Logo`} 
-                className="w-58 object-contain relative z-10"
+                className="object-contain relative z-10"
+                style={{ width: '320px' }}
               />
             ) : (
               <div className="h-24 w-full flex items-center justify-center text-2xl font-bold opacity-30 relative z-10" />
             )}
           </div>
 
-          {/* 2. スペーサー：警告に従い flex-grow を grow に変更 */}
-          <div className="grow" style={{ minHeight: '36px' }}></div>
+          {/* 2. スペーサー：30px固定間隔 */}
+          <div style={{ height: '30px' }}></div>
         
           {/* 3. 店舗名とジャンルの塊（下部に配置） */}
-          <div className="flex flex-col items-center mb-[8vh]">
-            <h2 className="text-[96px] font-black leading-tight tracking-tight mb-8">
+          <div className="flex flex-col items-center">
+            <h2 className="text-[60px] font-black leading-tight tracking-tight mb-7.5">
               {displayName}
             </h2>
 
             {displayGenre && (
-              <div className="inline-block px-18 py-6 border-6 border-[#bf995b] rounded-full">
-                <p className="text-4xl font-bold text-[#4b2c20]">
+              <div className="inline-block border-6 border-[#bf995b] rounded-full mb-7.5" style={{ paddingLeft: '60px', paddingRight: '60px', paddingTop: '12px', paddingBottom: '12px' }}>
+                <p className="text-[32px] font-bold text-[#4b2c20]">
                   {displayGenre}
                 </p>
               </div>
