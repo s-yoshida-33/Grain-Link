@@ -3,7 +3,8 @@ import { invoke } from '@tauri-apps/api/core';
 import { logError, logInfo } from '../logs/logging';
 
 export interface MediaDownloadStatus {
-  status: 'idle' | 'checking' | 'downloading' | 'completed' | 'error';
+  // Added 'extracting' status although primarily mapped to 'downloading' in UI for now
+  status: 'idle' | 'checking' | 'downloading' | 'extracting' | 'completed' | 'error';
   progress: number; // 0-100
   message: string;
   currentFile?: string;
@@ -14,7 +15,7 @@ export interface MediaDownloadStatus {
 export interface MediaItem {
   url: string;
   fileName: string;
-  type: 'image' | 'video'; // メディアタイプ
+  type: 'image' | 'video'; // Media type
 }
 
 export const useMediaDownload = () => {
@@ -24,13 +25,13 @@ export const useMediaDownload = () => {
     message: '',
   });
 
-  // メディアリストをダウンロード
+  // Download media list (Legacy/Individual file mode)
   const downloadMediaList = useCallback(async (mediaList: MediaItem[]) => {
     if (!mediaList || mediaList.length === 0) {
       setDownloadStatus({
         status: 'idle',
         progress: 0,
-        message: 'ダウンロードするメディアがありません',
+        message: 'No media to download',
       });
       return;
     }
@@ -39,7 +40,7 @@ export const useMediaDownload = () => {
       setDownloadStatus({
         status: 'checking',
         progress: 0,
-        message: `${mediaList.length}個のメディアをダウンロード準備中...`,
+        message: `Preparing to download ${mediaList.length} files...`,
         totalFiles: mediaList.length,
         downloadedFiles: 0,
       });
@@ -50,13 +51,13 @@ export const useMediaDownload = () => {
 
       let downloadedCount = 0;
 
-      // メディアを順序に従ってダウンロード
+      // Download media sequentially
       for (const media of mediaList) {
         try {
           setDownloadStatus({
             status: 'downloading',
             progress: Math.round((downloadedCount / mediaList.length) * 100),
-            message: `ダウンロード中: ${media.fileName}`,
+            message: `Downloading: ${media.fileName}`,
             currentFile: media.fileName,
             totalFiles: mediaList.length,
             downloadedFiles: downloadedCount,
@@ -64,7 +65,7 @@ export const useMediaDownload = () => {
 
           logInfo('MEDIA_DOWNLOAD', `Downloading media: ${media.fileName}`);
 
-          // Tauri コマンドでダウンロード実行
+          // Execute download via Tauri command
           await invoke<{ success: boolean; message: string }>('download_media', {
             url: media.url,
             fileName: media.fileName,
@@ -78,14 +79,14 @@ export const useMediaDownload = () => {
           logError('MEDIA_DOWNLOAD', `Failed to download ${media.fileName}`, {
             error: error instanceof Error ? error.message : String(error),
           });
-          // エラーでも続行
+          // Continue even on error
         }
       }
 
       setDownloadStatus({
         status: 'completed',
         progress: 100,
-        message: `${downloadedCount}/${mediaList.length} 個のメディアをダウンロードしました`,
+        message: `Downloaded ${downloadedCount}/${mediaList.length} files`,
         totalFiles: mediaList.length,
         downloadedFiles: downloadedCount,
       });
@@ -102,18 +103,18 @@ export const useMediaDownload = () => {
       setDownloadStatus({
         status: 'error',
         progress: 0,
-        message: 'メディアのダウンロードに失敗しました',
+        message: 'Failed to download media',
       });
     }
   }, []);
 
-  // 単一ファイルをダウンロード
+  // Download single file (Legacy)
   const downloadSingleMedia = useCallback(async (media: MediaItem) => {
     try {
       setDownloadStatus({
         status: 'downloading',
         progress: 0,
-        message: `${media.fileName} をダウンロード中...`,
+        message: `Downloading ${media.fileName}...`,
         currentFile: media.fileName,
       });
 
@@ -133,7 +134,7 @@ export const useMediaDownload = () => {
       setDownloadStatus({
         status: 'completed',
         progress: 100,
-        message: result.message || `${media.fileName} をダウンロードしました`,
+        message: result.message || `Downloaded ${media.fileName}`,
         currentFile: media.fileName,
       });
 
@@ -146,12 +147,45 @@ export const useMediaDownload = () => {
       setDownloadStatus({
         status: 'error',
         progress: 0,
-        message: `${media.fileName} のダウンロードに失敗しました`,
+        message: `Failed to download ${media.fileName}`,
       });
     }
   }, []);
 
-  // ダウンロード状態をリセット
+  // New function: Sync media via ZIP archive
+  const syncMediaFromZip = useCallback(async (zipUrl: string) => {
+    try {
+      setDownloadStatus({
+        status: 'downloading',
+        progress: 50, // Indeterminate progress for ZIP
+        message: 'Downloading and extracting latest media...',
+      });
+
+      logInfo('MEDIA_SYNC', `Starting ZIP sync from: ${zipUrl}`);
+
+      // Call the new Rust command
+      await invoke('sync_media_from_zip', { url: zipUrl });
+
+      setDownloadStatus({
+        status: 'completed',
+        progress: 100,
+        message: 'Media synchronization completed',
+      });
+
+      logInfo('MEDIA_SYNC', 'Media sync completed successfully');
+    } catch (error) {
+      logError('MEDIA_SYNC', 'Failed to sync media from ZIP', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      setDownloadStatus({
+        status: 'error',
+        progress: 0,
+        message: 'Failed to update media',
+      });
+    }
+  }, []);
+
+  // Reset download status
   const resetDownloadStatus = useCallback(() => {
     setDownloadStatus({
       status: 'idle',
@@ -164,8 +198,9 @@ export const useMediaDownload = () => {
     downloadStatus,
     downloadMediaList,
     downloadSingleMedia,
+    syncMediaFromZip, // Export the new function
     resetDownloadStatus,
-    isDownloading: downloadStatus.status === 'downloading',
+    isDownloading: downloadStatus.status === 'downloading' || downloadStatus.status === 'extracting',
     isCompleted: downloadStatus.status === 'completed',
     isError: downloadStatus.status === 'error',
   };
