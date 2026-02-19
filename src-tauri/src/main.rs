@@ -192,7 +192,7 @@ fn sync_media_from_zip(url: String) -> Result<DownloadResponse, String> {
 
 async fn download_and_extract_zip(url: String) -> Result<DownloadResponse, String> {
     // Target directory: AppData/Local/com.tti.grain-link/
-    // The ZIP is expected to contain "images/" and "videos/" folders directly.
+    // The ZIP is expected to contain "images/" and "videos/" folders directly, or flat files.
     let app_local_data_dir = dirs::data_local_dir()
         .ok_or("Failed to get local data directory")?
         .join("com.tti.grain-link");
@@ -260,7 +260,7 @@ fn main() {
             read_image_file,
             read_video_file,
             download_media,
-            sync_media_from_zip, // Register the new command
+            sync_media_from_zip,
             write_log
         ]);
 
