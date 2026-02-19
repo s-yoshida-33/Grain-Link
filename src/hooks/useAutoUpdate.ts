@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import { check } from '@tauri-apps/plugin-updater';
+import type { Update, DownloadEvent } from '@tauri-apps/plugin-updater';
 import { relaunch } from '@tauri-apps/plugin-process';
 import { logWarn, logError } from '../logs/logging';
 
 export interface UpdateStatus {
-  // 'uptodate' を追加して明確に区別
   status: 'idle' | 'checking' | 'available' | 'downloading' | 'ready' | 'error' | 'uptodate';
   progress: number; // 0-100
   message: string;
@@ -30,30 +30,27 @@ export const useAutoUpdate = () => {
 
         logWarn('UPDATER', 'Checking for app updates');
 
-        // タイムアウト機制を追加（30秒以内に完了しなければエラー）
-        const checkPromise = check() as Promise<any>;
-        const timeoutPromise = new Promise((_, reject) =>
+        const timeoutPromise = new Promise<never>((_, reject) =>
           setTimeout(() => reject(new Error('Update check timeout')), 30000)
         );
 
-        const updateInfo = await Promise.race([checkPromise, timeoutPromise]);
+        const update = await Promise.race([check(), timeoutPromise]);
 
-        if (updateInfo) {
+        if (update) {
           logWarn('UPDATER', 'Update available', {
-            version: updateInfo.manifest?.version || 'unknown',
+            version: update.version,
           });
 
           setUpdateStatus({
             status: 'available',
             progress: 0,
-            message: `新しいバージョンが利用可能です (${updateInfo.manifest?.version || 'Latest'})`,
+            message: `新しいバージョンが利用可能です (${update.version})`,
           });
 
           // 自動的にダウンロード開始
-          await downloadAndInstallUpdate(updateInfo);
+          await downloadAndInstallUpdate(update);
         } else {
           logWarn('UPDATER', 'App is up to date');
-          // ステータスを 'uptodate' に変更
           setUpdateStatus({
             status: 'uptodate',
             progress: 0,
@@ -84,45 +81,52 @@ export const useAutoUpdate = () => {
     checkForUpdates();
   }, []);
 
-  const downloadAndInstallUpdate = async (updateInfo: any) => {
+  const downloadAndInstallUpdate = async (update: Update) => {
     try {
       setUpdateStatus({
         status: 'downloading',
-        progress: 10,
+        progress: 0,
         message: 'アップデートをダウンロード中...',
       });
 
       logWarn('UPDATER', 'Starting update download');
 
       const downloadStartTime = Date.now();
+      let contentLength = 0;
+      let downloaded = 0;
 
-      const downloadPromise = updateInfo.downloadAndInstall(
-        new (class {
-          finish() {
-            const downloadTime = (Date.now() - downloadStartTime) / 1000;
-            logWarn('UPDATER', 'Update ready to install', { duration: `${downloadTime}s` });
-            
-            setUpdateStatus({
-              status: 'ready',
-              progress: 100,
-              message: 'アップデート完了。5秒後に再起動します。',
-            });
-          }
-
-          progress(payload: any) {
-            const progress = Math.round((payload.chunkLen / payload.contentLength) * 100);
+      const downloadPromise = update.downloadAndInstall((event: DownloadEvent) => {
+        switch (event.event) {
+          case 'Started':
+            contentLength = event.data.contentLength ?? 0;
+            logWarn('UPDATER', 'Download started', { contentLength });
+            break;
+          case 'Progress': {
+            downloaded += event.data.chunkLength;
+            const progress = contentLength > 0
+              ? Math.min(Math.round((downloaded / contentLength) * 100), 99)
+              : 0;
             setUpdateStatus({
               status: 'downloading',
               progress,
               message: `ダウンロード中... ${progress}%`,
             });
-
-            logWarn('UPDATER', 'Update download progress', { progress });
+            break;
           }
-        })()
-      );
+          case 'Finished': {
+            const downloadTime = (Date.now() - downloadStartTime) / 1000;
+            logWarn('UPDATER', 'Update ready to install', { duration: `${downloadTime}s` });
+            setUpdateStatus({
+              status: 'ready',
+              progress: 100,
+              message: 'アップデート完了。5秒後に再起動します。',
+            });
+            break;
+          }
+        }
+      });
 
-      const timeoutPromise = new Promise((_, reject) =>
+      const timeoutPromise = new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error('Update download timeout - took too long')), 600000)
       );
 
