@@ -5,6 +5,8 @@ use std::fs;
 use std::fs::OpenOptions;
 use std::io::Write;
 use chrono::Local;
+use std::io::Cursor;
+use zip::ZipArchive;
 
 #[derive(Serialize, Deserialize)]
 struct FetchResponse {
@@ -60,7 +62,7 @@ fn write_log(
         format!("[{}] [{}] [{}] {} | {}\n", timestamp, level, tag, message, context_str)
     };
 
-    // ログファイルに追記
+    // Append to log file
     let log_file_path = get_log_file_path()?;
     let mut file = OpenOptions::new()
         .create(true)
@@ -113,7 +115,7 @@ fn download_media(
     file_name: String,
     media_type: String,
 ) -> Result<DownloadResponse, String> {
-    // ダウンロード実行（非ブロッキング）
+    // Execute download (non-blocking)
     let rt = tokio::runtime::Runtime::new()
         .map_err(|e| format!("Runtime error: {}", e))?;
 
@@ -127,26 +129,26 @@ async fn download_media_async(
     file_name: String,
     media_type: String,
 ) -> Result<DownloadResponse, String> {
-    // アプリケーションローカルデータディレクトリを取得 - unified under com.tti.grain-link
+    // Get application local data directory - unified under com.tti.grain-link
     let app_local_data_dir = dirs::data_local_dir()
         .ok_or("Failed to get local data directory")?
         .join("com.tti.grain-link");
 
-    // メディアタイプに応じてディレクトリを分ける
+    // Separate directories based on media type
     let subdir = match media_type.as_str() {
         "image" => "images",
         "video" => "videos",
         _ => "media",
     };
 
-    // ファイルパスを構築（com.tti.grain-link 配下）
+    // Construct file path (under com.tti.grain-link)
     let media_dir = app_local_data_dir.join(subdir);
     fs::create_dir_all(&media_dir)
         .map_err(|e| format!("Failed to create media directory: {}", e))?;
 
     let file_path = media_dir.join(&file_name);
 
-    // URLからダウンロード
+    // Download from URL
     let client = reqwest::Client::new();
     let response = client
         .get(&url)
@@ -163,7 +165,7 @@ async fn download_media_async(
         .await
         .map_err(|e| format!("Failed to read response body: {}", e))?;
 
-    // ファイルに保存
+    // Save to file
     let mut file = fs::File::create(&file_path)
         .map_err(|e| format!("Failed to create file: {}", e))?;
 
@@ -173,6 +175,76 @@ async fn download_media_async(
     Ok(DownloadResponse {
         success: true,
         message: format!("Downloaded {} to {}", file_name, file_path.display()),
+    })
+}
+
+// --- New Command: ZIP Sync ---
+
+#[tauri::command]
+fn sync_media_from_zip(url: String) -> Result<DownloadResponse, String> {
+    let rt = tokio::runtime::Runtime::new()
+        .map_err(|e| format!("Runtime error: {}", e))?;
+
+    rt.block_on(async {
+        download_and_extract_zip(url).await
+    })
+}
+
+async fn download_and_extract_zip(url: String) -> Result<DownloadResponse, String> {
+    // Target directory: AppData/Local/com.tti.grain-link/
+    // The ZIP is expected to contain "images/" and "videos/" folders directly.
+    let app_local_data_dir = dirs::data_local_dir()
+        .ok_or("Failed to get local data directory")?
+        .join("com.tti.grain-link");
+
+    // 1. Download ZIP
+    let client = reqwest::Client::new();
+    let response = client.get(&url).send().await
+        .map_err(|e| format!("HTTP request failed: {}", e))?;
+
+    if !response.status().is_success() {
+        return Err(format!("Bad HTTP status: {}", response.status()));
+    }
+
+    let bytes = response.bytes().await
+        .map_err(|e| format!("Failed to read response body: {}", e))?;
+
+    // 2. Extract ZIP in memory
+    let reader = Cursor::new(bytes);
+    let mut archive = ZipArchive::new(reader)
+        .map_err(|e| format!("Failed to read zip archive: {}", e))?;
+
+    // 3. Extract files
+    for i in 0..archive.len() {
+        let mut file = archive.by_index(i)
+            .map_err(|e| format!("Failed to read file in zip: {}", e))?;
+        
+        // Prevent path traversal attacks
+        let outpath = match file.enclosed_name() {
+            Some(path) => app_local_data_dir.join(path),
+            None => continue,
+        };
+
+        if file.name().ends_with('/') {
+            fs::create_dir_all(&outpath)
+                .map_err(|e| format!("Failed to create dir: {}", e))?;
+        } else {
+            if let Some(p) = outpath.parent() {
+                if !p.exists() {
+                    fs::create_dir_all(p)
+                        .map_err(|e| format!("Failed to create parent dir: {}", e))?;
+                }
+            }
+            let mut outfile = fs::File::create(&outpath)
+                .map_err(|e| format!("Failed to create file: {}", e))?;
+            std::io::copy(&mut file, &mut outfile)
+                .map_err(|e| format!("Failed to write extracted file: {}", e))?;
+        }
+    }
+
+    Ok(DownloadResponse {
+        success: true,
+        message: "Media synchronization completed".to_string(),
     })
 }
 
@@ -188,6 +260,7 @@ fn main() {
             read_image_file,
             read_video_file,
             download_media,
+            sync_media_from_zip, // Register the new command
             write_log
         ]);
 

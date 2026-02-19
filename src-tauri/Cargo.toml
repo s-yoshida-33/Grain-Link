@@ -1,6 +1,6 @@
 [package]
 name = "grain-link"
-version = "0.2.2"
+version = "0.2.4"
 description = "Grain Link Tauri application"
 authors = ["Toei Techno International Inc."]
 license = "UNLICENSED"
@@ -23,16 +23,10 @@ tokio = { version = "1", features = ["full"] }
 reqwest = { version = "0.11", features = ["blocking", "json"] }
 dirs = "5.0"
 chrono = "0.4"
-
-
+zip = "2.1" 
 
 [profile.release]
 codegen-units = 1
 lto = true
 strip = true
 opt-level = "z"
-
-
-
-
-
