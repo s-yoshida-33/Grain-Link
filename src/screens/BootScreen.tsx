@@ -16,7 +16,8 @@ interface BootScreenProps {
 type BootStage = 'init' | 'update-check' | 'update-wait' | 'media-check' | 'media-wait' | 'countdown' | 'complete';
 
 export const BootScreen: React.FC<BootScreenProps> = ({ onBootComplete }) => {
-  const { updateStatus, isUpdateReady } = useAutoUpdate();
+  // 修正: isUpdateReady を削除（使用していないため）
+  const { updateStatus, installUpdate } = useAutoUpdate();
   const { downloadStatus, syncMediaFromZip } = useMediaDownload();
   const { settings } = useAppSettings();
 
@@ -35,24 +36,60 @@ export const BootScreen: React.FC<BootScreenProps> = ({ onBootComplete }) => {
     }
   }, [currentStage]);
 
-  // Stage 2: Update Wait
+  // Stage 2: Update Wait & Auto-Transition Logic
   useEffect(() => {
-    if (currentStage === 'update-check' && (isUpdateReady || skipUpdate) && (updateStatus.status === 'idle' || updateStatus.status === 'error')) {
-      logInfo('BOOT', 'Update stage completed');
+    if (currentStage !== 'update-check') return;
+
+    // 修正: NodeJS.Timeout ではなく ReturnType<typeof setTimeout> を使用
+    let timer: ReturnType<typeof setTimeout>;
+
+    // ケース1: アップデート準備完了 (成功)
+    if (updateStatus.status === 'ready') {
+      logInfo('BOOT', 'Update ready, scheduling restart in 5s...');
+      timer = setTimeout(() => {
+        logInfo('BOOT', 'Executing auto-restart for update...');
+        installUpdate(); // アプリ再起動
+      }, 5000);
+    }
+    // ケース2: エラー発生 (失敗)
+    else if (updateStatus.status === 'error') {
+      logInfo('BOOT', 'Update error, skipping in 5s...');
+      timer = setTimeout(() => {
+        logInfo('BOOT', 'Auto-skipping update due to error');
+        setSkipUpdate(true);
+      }, 5000);
+    }
+    // ケース3: 更新なし (最新版)
+    else if (updateStatus.status === 'uptodate') {
+      // 最新版の場合は即座に次へ進む
+      logInfo('BOOT', 'App is up to date, proceeding...');
+      // 念のため少し待ってから遷移させると画面のちらつきが防げます
+      timer = setTimeout(() => {
+        setSkipUpdate(true);
+      }, 1000);
+    }
+
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [updateStatus.status, currentStage, installUpdate]);
+
+  // Stage 2 Transition Trigger
+  useEffect(() => {
+    if (currentStage === 'update-check' && skipUpdate) {
+      logInfo('BOOT', 'Update stage completed (Skipped or Finished)');
       setShowUpdateDialog(false);
       setCurrentStage('media-check');
     }
-  }, [updateStatus.status, isUpdateReady, skipUpdate, currentStage]);
+  }, [skipUpdate, currentStage]);
 
-  // Stage 3: Media Check (Logic Changed)
+  // Stage 3: Media Check
   useEffect(() => {
     if (currentStage === 'media-check' && settings) {
       (async () => {
         try {
           logInfo('BOOT', 'Checking for media updates from latest.json...');
           
-          // Fetch latest.json directly from GitHub Releases
-          // This URL must match your repo's release structure
           const latestJsonUrl = "https://github.com/s-yoshida-33/Grain-Link/releases/latest/download/latest.json";
           const response = await fetch(latestJsonUrl);
           
@@ -61,7 +98,6 @@ export const BootScreen: React.FC<BootScreenProps> = ({ onBootComplete }) => {
           }
           
           const manifest = await response.json();
-          // The 'media' field is added by manage-release.ps1
           const mediaZipUrl = manifest.media?.url;
 
           if (mediaZipUrl) {
@@ -69,7 +105,6 @@ export const BootScreen: React.FC<BootScreenProps> = ({ onBootComplete }) => {
             setCurrentStage('media-wait');
             setShowMediaDialog(true);
             
-            // Execute ZIP sync
             await syncMediaFromZip(mediaZipUrl);
           } else {
             logInfo('BOOT', 'No media update info found in latest.json');
@@ -77,11 +112,9 @@ export const BootScreen: React.FC<BootScreenProps> = ({ onBootComplete }) => {
           }
 
         } catch (error) {
-          // Fix: Properly format the error object for logError (Error 2345)
           logError('BOOT', 'Failed to check media updates', {
             error: error instanceof Error ? error.message : String(error)
           });
-          // Proceed to countdown even on error to ensure app starts
           setCurrentStage('countdown');
         }
       })();
@@ -95,7 +128,6 @@ export const BootScreen: React.FC<BootScreenProps> = ({ onBootComplete }) => {
       (downloadStatus.status === 'completed' || downloadStatus.status === 'error' || skipMedia)
     ) {
       logInfo('BOOT', 'Media sync stage finished');
-      // Wait a bit before closing dialog
       setTimeout(() => {
         setShowMediaDialog(false);
         setCurrentStage('countdown');
@@ -143,8 +175,6 @@ export const BootScreen: React.FC<BootScreenProps> = ({ onBootComplete }) => {
     setCurrentStage('complete');
   };
 
-  // Helper to map statuses for UI (Error 2322)
-  // Maps 'extracting' to 'downloading' since MediaDownloadDialog might not support 'extracting'
   const getDialogStatus = () => {
     if (downloadStatus.status === 'extracting') return 'downloading';
     return downloadStatus.status;
@@ -162,7 +192,6 @@ export const BootScreen: React.FC<BootScreenProps> = ({ onBootComplete }) => {
 
         {/* Stage Indicators */}
         <div className="w-96 space-y-4">
-          {/* Status List */}
           <div className="space-y-2">
             <div className="flex items-center gap-3 p-3 bg-gray-800 rounded">
               <div className={`w-3 h-3 rounded-full ${currentStage === 'update-check' || currentStage === 'update-wait' ? 'bg-blue-500' : 'bg-gray-600'}`} />
@@ -213,6 +242,7 @@ export const BootScreen: React.FC<BootScreenProps> = ({ onBootComplete }) => {
       {/* Dialogs */}
       <UpdateDialog
         isOpen={showUpdateDialog}
+        // ここでの型エラーは UpdateDialog.tsx を修正すれば消えます
         status={updateStatus.status === 'idle' ? 'checking' : updateStatus.status}
         progress={updateStatus.progress}
         message={updateStatus.message}

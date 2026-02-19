@@ -2,7 +2,7 @@ import React from 'react';
 
 interface UpdateDialogProps {
   isOpen: boolean;
-  status: 'idle' | 'checking' | 'available' | 'downloading' | 'ready' | 'error';
+  status: 'idle' | 'checking' | 'available' | 'downloading' | 'ready' | 'error' | 'uptodate';
   progress: number;
   message: string;
   onInstall?: () => void;
@@ -35,12 +35,20 @@ export const UpdateDialog: React.FC<UpdateDialogProps> = ({
   const isDownloading = status === 'downloading';
   const isReady = status === 'ready';
   const isError = status === 'error';
+  const isUptodate = status === 'uptodate';
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg shadow-2xl p-8 max-w-md w-full mx-4">
+        {/* タイトル切り替え */}
         <h2 className="text-xl font-bold mb-4 text-gray-800">
-          {isReady ? 'アップデートが準備完了' : isError ? 'エラー' : 'アップデート'}
+          {isUptodate 
+            ? '最新バージョンです' 
+            : isReady 
+              ? 'アップデートが準備完了' 
+              : isError 
+                ? 'エラー' 
+                : 'アップデート確認中'}
         </h2>
 
         <p className="text-gray-600 mb-6">{message}</p>
@@ -60,7 +68,8 @@ export const UpdateDialog: React.FC<UpdateDialogProps> = ({
 
         {/* ボタン */}
         <div className="flex gap-3 justify-end">
-          {!isDownloading && !isReady && !isError && (
+          {/* キャンセルボタン: 特定の状態以外で表示 */}
+          {!isDownloading && !isReady && !isError && !isUptodate && (
             <button
               onClick={onDismiss}
               className="px-4 py-2 text-gray-600 bg-gray-100 rounded hover:bg-gray-200 transition"
@@ -90,6 +99,16 @@ export const UpdateDialog: React.FC<UpdateDialogProps> = ({
             <button
               onClick={onDismiss}
               className="px-4 py-2 text-white bg-gray-700 rounded hover:bg-gray-800 transition"
+            >
+              閉じる
+            </button>
+          )}
+
+          {/* 最新版の場合は閉じるボタンを表示（自動遷移しますが念のため） */}
+          {isUptodate && (
+            <button
+              onClick={onDismiss}
+              className="px-4 py-2 text-white bg-green-500 rounded hover:bg-green-600 transition"
             >
               閉じる
             </button>
