@@ -58,13 +58,13 @@ if (-not $sigFile) {
     exit 1
 }
 
-# --- 5. Read and Decode Signature Content ---
+# --- 5. Read and Encode Signature Content ---
 try {
     $rawContent = [System.IO.File]::ReadAllText($sigFile.FullName, [System.Text.Encoding]::UTF8).Trim()
 
-    # Check for Base64 encoding and decode if necessary (Tauri needs raw text signature)
+    # Ensure we have the raw minisign signature text
     if (-not ($rawContent -match "^untrusted comment:")) {
-        Write-Host "[*] Signature appears to be Base64 encoded. Decoding..." -ForegroundColor Yellow
+        Write-Host "[*] Signature appears to be Base64 encoded. Decoding to raw text..." -ForegroundColor Yellow
         $bytes = [System.Convert]::FromBase64String($rawContent)
         $signatureContent = [System.Text.Encoding]::UTF8.GetString($bytes)
     } else {
@@ -72,12 +72,17 @@ try {
     }
 
     # Normalize Windows line endings to Unix LF
-    # Tauri's minisign verifier expects LF-only; CRLF causes "Invalid symbol 10" errors
     $signatureContent = $signatureContent -replace "`r`n", "`n"
     $signatureContent = $signatureContent -replace "`r", "`n"
     $signatureContent = $signatureContent.Trim()
 
-    Write-Host "[*] Signature content normalized (line endings: LF)" -ForegroundColor Cyan
+    # CRITICAL: tauri-plugin-updater's verify_signature() calls base64_to_string()
+    # on BOTH pubkey AND signature before passing to minisign-verify.
+    # The signature in latest.json must be Base64-encoded (matching pubkey format).
+    $signatureBytes = [System.Text.Encoding]::UTF8.GetBytes($signatureContent)
+    $signatureBase64 = [System.Convert]::ToBase64String($signatureBytes)
+
+    Write-Host "[*] Signature Base64-encoded for Tauri updater (${signatureBase64.Length} chars)" -ForegroundColor Cyan
 } catch {
     Write-Host "[!] Error processing signature: $_" -ForegroundColor Red
     exit 1
@@ -96,7 +101,7 @@ $jsonObj = @{
     pub_date = $pubDate
     platforms = @{
         "windows-x86_64" = @{
-            signature = $signatureContent
+            signature = $signatureBase64
             url = "${baseUrl}/$($exeFile.Name)"
         }
     }
