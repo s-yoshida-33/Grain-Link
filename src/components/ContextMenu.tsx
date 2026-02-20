@@ -68,8 +68,8 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ children }) => {
       const settings = await loadSettings();
       settings.appMode = newMode;
       await saveSettings(settings);
-      // モード変更はビュー全体が変わるためリロード
-      window.location.reload();
+      // 設定再読み込みイベントを発火（アプリ再起動なしでモード切替）
+      window.dispatchEvent(new CustomEvent('reload-settings'));
     } catch {
       // 保存失敗時は何もしない（logging は saveSettings 内で実施済み）
     }
