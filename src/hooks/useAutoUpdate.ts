@@ -6,6 +6,23 @@ import type { Update, DownloadEvent } from '@tauri-apps/plugin-updater';
 import { relaunch } from '@tauri-apps/plugin-process';
 import { logWarn, logError } from '../logs/logging';
 
+const formatBytes = (bytes: number): string => {
+  if (bytes === 0) return '0 B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`;
+};
+
+const formatRemaining = (seconds: number): string => {
+  if (seconds < 5) return '';
+  const rounded = Math.ceil(seconds / 5) * 5;
+  if (rounded < 60) return `残り約${rounded}秒`;
+  const mins = Math.floor(rounded / 60);
+  const secs = rounded % 60;
+  return secs > 0 ? `残り約${mins}分${secs}秒` : `残り約${mins}分`;
+};
+
 export interface UpdateStatus {
   status: 'idle' | 'checking' | 'available' | 'downloading' | 'ready' | 'error' | 'uptodate';
   progress: number; // 0-100
@@ -106,10 +123,25 @@ export const useAutoUpdate = () => {
             const progress = contentLength > 0
               ? Math.min(Math.round((downloaded / contentLength) * 100), 99)
               : 0;
+
+            const elapsed = (Date.now() - downloadStartTime) / 1000;
+            const speed = elapsed > 0 ? downloaded / elapsed : 0;
+            const remaining = speed > 0 && contentLength > 0
+              ? Math.ceil((contentLength - downloaded) / speed)
+              : 0;
+
+            const sizeStr = contentLength > 0
+              ? `${formatBytes(downloaded)} / ${formatBytes(contentLength)}`
+              : formatBytes(downloaded);
+            const remainingStr = formatRemaining(remaining);
+            const message = remainingStr
+              ? `ダウンロード中... ${sizeStr} (${remainingStr})`
+              : `ダウンロード中... ${sizeStr}`;
+
             setUpdateStatus({
               status: 'downloading',
               progress,
-              message: `ダウンロード中... ${progress}%`,
+              message,
             });
             break;
           }
