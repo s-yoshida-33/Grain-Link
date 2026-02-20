@@ -176,7 +176,7 @@ export const VideoSignageView: React.FC<VideoSignageViewProps> = ({ shops }) => 
         <LocalVideoPlayer
           playlist={playlist}
           onVideoChange={setCurrentVideoFile}
-          muted={true}
+          muted={settings?.isMuted ?? false}
         />
       </div>
 
