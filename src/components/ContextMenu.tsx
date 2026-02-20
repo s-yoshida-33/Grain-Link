@@ -20,6 +20,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ children }) => {
   const [visible, setVisible] = useState(false);
   const [position, setPosition] = useState<Position>({ x: 0, y: 0 });
   const [currentMode, setCurrentMode] = useState<AppMode | null>(null);
+  const [isMuted, setIsMuted] = useState(false);
 
   const hideMenu = useCallback(() => setVisible(false), []);
 
@@ -30,6 +31,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ children }) => {
       try {
         const settings = await loadSettings();
         setCurrentMode(settings.appMode);
+        setIsMuted(settings.isMuted ?? false);
       } catch {
         setCurrentMode(null);
       }
@@ -75,6 +77,18 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ children }) => {
     }
   }, [hideMenu]);
 
+  const toggleMute = useCallback(async () => {
+    hideMenu();
+    try {
+      const settings = await loadSettings();
+      settings.isMuted = !isMuted;
+      await saveSettings(settings);
+      window.dispatchEvent(new CustomEvent('reload-settings'));
+    } catch {
+      // 保存失敗時は何もしない
+    }
+  }, [hideMenu, isMuted]);
+
   // 切り替え先のモード
   const targetMode: AppMode | null = currentMode === 'VIDEO_AD' ? 'SHOP_LIST'
     : currentMode === 'SHOP_LIST' ? 'VIDEO_AD'
@@ -86,8 +100,12 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ children }) => {
     ...(targetMode ? [{
       label: `${MODE_LABELS[targetMode]} に切替`,
       action: () => switchMode(targetMode),
-      separator: true,
     }] : []),
+    {
+      label: isMuted ? 'ミュート解除' : 'ミュート',
+      action: toggleMute,
+      separator: true,
+    },
     { label: '手動更新 (Releasesを開く)', action: openReleases, separator: true },
     { label: '終了', action: quitApp },
   ];
