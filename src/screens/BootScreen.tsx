@@ -4,8 +4,8 @@ import { useAutoUpdate } from '../hooks/useAutoUpdate';
 import { useMediaDownload } from '../hooks/useMediaDownload';
 import { useAppSettings } from '../hooks/useAppSettings';
 import { logInfo, logError } from '../logs/logging';
-import { fetch } from '@tauri-apps/plugin-http';
 import { BaseDirectory, exists, readTextFile, writeTextFile } from '@tauri-apps/plugin-fs';
+import { fetchMediaAssetMetadata } from '../api/restClient';
 
 interface BootScreenProps {
   onBootComplete: () => void;
@@ -53,31 +53,29 @@ export const BootScreen: React.FC<BootScreenProps> = ({ onBootComplete }) => {
   // --- Stage 2: Media check & download ---
   const startMediaCheck = useCallback(async () => {
     try {
-      logInfo('BOOT', 'Checking for media updates from latest.json...');
-      const latestJsonUrl = "https://github.com/s-yoshida-33/Grain-Link/releases/latest/download/latest.json";
-      const response = await fetch(latestJsonUrl);
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch latest.json: ${response.status}`);
-      }
-
-      const manifest = await response.json();
-      const mediaZipUrl = manifest.media?.url;
-
-      if (!mediaZipUrl) {
-        logInfo('BOOT', 'No media update info found in latest.json');
+      logInfo('BOOT', 'Checking for media updates via GitHub Release API...');
+      
+      // GitHub Release Asset から sakaikitahanada-media.zip の updated_at を取得
+      const assetMetadata = await fetchMediaAssetMetadata('sakaikitahanada');
+      if (!assetMetadata.updated_at) {
+        logInfo('BOOT', 'Could not fetch media asset metadata, skipping update');
         setCurrentStage('countdown');
         return;
       }
 
-      // Check if media is already up to date
+      // ローカルの media-meta.json をチェック
       try {
         const metaExists = await exists(MEDIA_META_FILE, { baseDir: BaseDirectory.AppLocalData });
         if (metaExists) {
           const metaContent = await readTextFile(MEDIA_META_FILE, { baseDir: BaseDirectory.AppLocalData });
           const meta = JSON.parse(metaContent);
-          if (meta.lastMediaUrl === mediaZipUrl) {
+          
+          const remoteDate = new Date(assetMetadata.updated_at).getTime();
+          const localDate = meta.lastMediaUpdatedAt ? new Date(meta.lastMediaUpdatedAt).getTime() : 0;
+          
+          if (remoteDate <= localDate) {
             logInfo('BOOT', 'Media is already up to date, skipping download');
+            logInfo('BOOT', `Remote: ${assetMetadata.updated_at}, Local: ${meta.lastMediaUpdatedAt}`);
             setCurrentStage('countdown');
             return;
           }
@@ -85,18 +83,20 @@ export const BootScreen: React.FC<BootScreenProps> = ({ onBootComplete }) => {
       } catch {
         // meta read failure is non-critical, proceed with download
       }
-
-      logInfo('BOOT', `Found media update: ${mediaZipUrl}`);
+      
+      // メディアのダウンロード URL を組み立て
+      const mediaZipUrl = `https://github.com/s-yoshida-33/Grain-Link/releases/latest/download/sakaikitahanada-media.zip`;
+      logInfo('BOOT', `Found media update, downloading from: ${mediaZipUrl}`);
       await syncMediaFromZip(mediaZipUrl);
 
-      // Save media URL after successful download
+      // ダウンロード完了後、メディアメタデータを保存
       try {
         await writeTextFile(
           MEDIA_META_FILE,
-          JSON.stringify({ lastMediaUrl: mediaZipUrl }),
+          JSON.stringify({ lastMediaUpdatedAt: assetMetadata.updated_at }),
           { baseDir: BaseDirectory.AppLocalData }
         );
-        logInfo('BOOT', 'Saved media meta for skip check');
+        logInfo('BOOT', 'Saved media metadata for update check');
       } catch {
         // Non-critical failure
       }

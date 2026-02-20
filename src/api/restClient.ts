@@ -110,3 +110,36 @@ export const fetchMediaDownloadStatusFromApi = async (mallId: string): Promise<{
     };
   }
 };
+
+// GitHub Release Asset からメディアファイルのメタデータを取得
+export const fetchMediaAssetMetadata = async (mallId: string): Promise<{ updated_at: string | null }> => {
+  try {
+    const { fetch: tauriFetch } = await import('@tauri-apps/plugin-http');
+    const owner = 's-yoshida-33';
+    const repo = 'Grain-Link';
+    const fileName = `${mallId}-media.zip`;
+    
+    const latestReleaseUrl = `https://api.github.com/repos/${owner}/${repo}/releases/latest`;
+    const response = await tauriFetch(latestReleaseUrl);
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch release: ${response.status}`);
+    }
+    
+    const release = await response.json() as { assets: Array<{ name: string; updated_at: string }> };
+    const asset = release.assets.find(a => a.name === fileName);
+    
+    if (!asset) {
+      logInfo('BOOT', `Media asset not found: ${fileName}`);
+      return { updated_at: null };
+    }
+    
+    logInfo('BOOT', `Media asset found: ${fileName}, updated_at: ${asset.updated_at}`);
+    return { updated_at: asset.updated_at };
+  } catch (error) {
+    logError('BOOT', 'Failed to fetch media asset metadata', {
+      error: error instanceof Error ? error.message : String(error)
+    });
+    return { updated_at: null };
+  }
+};
