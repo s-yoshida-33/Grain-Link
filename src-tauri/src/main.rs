@@ -7,6 +7,7 @@ use std::io::Write;
 use chrono::Local;
 use std::io::Cursor;
 use zip::ZipArchive;
+use tauri::Emitter;
 
 #[derive(Serialize, Deserialize)]
 struct FetchResponse {
@@ -178,31 +179,29 @@ async fn download_media_async(
     })
 }
 
-// --- New Command: ZIP Sync ---
+// --- ZIP Sync with progress events ---
 
-#[tauri::command]
-fn sync_media_from_zip(url: String) -> Result<DownloadResponse, String> {
-    let rt = tokio::runtime::Runtime::new()
-        .map_err(|e| format!("Runtime error: {}", e))?;
-
-    rt.block_on(async {
-        download_and_extract_zip(url).await
-    })
+#[derive(Clone, Serialize)]
+struct MediaProgress {
+    phase: String,       // "download" or "extract"
+    downloaded: u64,     // bytes downloaded
+    total: u64,          // total bytes (0 if unknown)
+    extracted: u32,      // files extracted so far
+    total_files: u32,    // total files in archive
 }
 
-async fn download_and_extract_zip(url: String) -> Result<DownloadResponse, String> {
+#[tauri::command]
+async fn sync_media_from_zip(app: tauri::AppHandle, url: String) -> Result<DownloadResponse, String> {
     // Target directory: AppData/Local/com.tti.grain-link/videos/
-    // The media ZIP contains video files at the root level (no subdirectory structure).
     let extract_dir = dirs::data_local_dir()
         .ok_or("Failed to get local data directory")?
         .join("com.tti.grain-link")
         .join("videos");
 
-    // Ensure the videos directory exists
     fs::create_dir_all(&extract_dir)
         .map_err(|e| format!("Failed to create videos directory: {}", e))?;
 
-    // 1. Download ZIP
+    // 1. Download ZIP with chunked progress
     let client = reqwest::Client::new();
     let response = client.get(&url).send().await
         .map_err(|e| format!("HTTP request failed: {}", e))?;
@@ -211,13 +210,29 @@ async fn download_and_extract_zip(url: String) -> Result<DownloadResponse, Strin
         return Err(format!("Bad HTTP status: {}", response.status()));
     }
 
-    let bytes = response.bytes().await
-        .map_err(|e| format!("Failed to read response body: {}", e))?;
+    let total_size = response.content_length().unwrap_or(0);
+    let mut downloaded: u64 = 0;
+    let mut buffer = Vec::with_capacity(if total_size > 0 { total_size as usize } else { 10 * 1024 * 1024 });
+
+    let mut response = response;
+    while let Some(chunk) = response.chunk().await.map_err(|e| format!("Download error: {}", e))? {
+        downloaded += chunk.len() as u64;
+        buffer.extend_from_slice(&chunk);
+        let _ = app.emit("media-progress", MediaProgress {
+            phase: "download".to_string(),
+            downloaded,
+            total: total_size,
+            extracted: 0,
+            total_files: 0,
+        });
+    }
 
     // 2. Extract ZIP in memory
-    let reader = Cursor::new(bytes);
+    let reader = Cursor::new(buffer);
     let mut archive = ZipArchive::new(reader)
         .map_err(|e| format!("Failed to read zip archive: {}", e))?;
+
+    let total_files = archive.len() as u32;
 
     // 3. Extract files into videos directory
     for i in 0..archive.len() {
@@ -245,6 +260,14 @@ async fn download_and_extract_zip(url: String) -> Result<DownloadResponse, Strin
             std::io::copy(&mut file, &mut outfile)
                 .map_err(|e| format!("Failed to write extracted file: {}", e))?;
         }
+
+        let _ = app.emit("media-progress", MediaProgress {
+            phase: "extract".to_string(),
+            downloaded,
+            total: total_size,
+            extracted: (i + 1) as u32,
+            total_files,
+        });
     }
 
     Ok(DownloadResponse {
