@@ -53,50 +53,79 @@ export const BootScreen: React.FC<BootScreenProps> = ({ onBootComplete }) => {
   // --- Stage 2: Media check & download ---
   const startMediaCheck = useCallback(async () => {
     try {
-      logInfo('BOOT', 'Checking for media updates via GitHub Release API...');
-      
-      // GitHub Release Asset から sakaikitahanada-media.zip の updated_at を取得
-      const assetMetadata = await fetchMediaAssetMetadata('sakaikitahanada');
-      if (!assetMetadata.updated_at) {
-        logInfo('BOOT', 'Could not fetch media asset metadata, skipping update');
-        setCurrentStage('countdown');
-        return;
-      }
+      logInfo('BOOT', 'Checking for media updates...');
 
-      // ローカルの media-meta.json をチェック
+      // ローカルの media-meta.json を読み込み（存在しない場合は初回起動扱い）
+      let localUpdatedAt: string | null = null;
+      let isFirstBoot = false;
       try {
         const metaExists = await exists(MEDIA_META_FILE, { baseDir: BaseDirectory.AppLocalData });
         if (metaExists) {
           const metaContent = await readTextFile(MEDIA_META_FILE, { baseDir: BaseDirectory.AppLocalData });
           const meta = JSON.parse(metaContent);
-          
+          localUpdatedAt = meta.lastMediaUpdatedAt || null;
+        } else {
+          isFirstBoot = true;
+        }
+      } catch (e) {
+        logInfo('BOOT', 'Failed to read media metadata, treating as first boot', {
+          error: e instanceof Error ? e.message : String(e)
+        });
+        isFirstBoot = true;
+      }
+
+      // GitHub API からメディアの更新日時を取得（タイムアウト5秒）
+      logInfo('BOOT', 'Fetching media metadata from GitHub...');
+      const timeoutPromise = new Promise<{ updated_at: string | null }>((resolve) => {
+        setTimeout(() => {
+          logInfo('BOOT', 'GitHub API request timed out, proceeding without update check');
+          resolve({ updated_at: null });
+        }, 5000);
+      });
+
+      const assetMetadata = await Promise.race([
+        fetchMediaAssetMetadata('sakaikitahanada'),
+        timeoutPromise
+      ]);
+
+      // 初回起動 → GitHub API の結果に関係なく必ずダウンロード
+      // 2回目以降 → 日付比較して更新があればダウンロード
+      if (!isFirstBoot) {
+        if (!assetMetadata.updated_at) {
+          logInfo('BOOT', 'Could not fetch remote media metadata, assuming up to date');
+          setCurrentStage('countdown');
+          return;
+        }
+
+        if (localUpdatedAt) {
           const remoteDate = new Date(assetMetadata.updated_at).getTime();
-          const localDate = meta.lastMediaUpdatedAt ? new Date(meta.lastMediaUpdatedAt).getTime() : 0;
-          
+          const localDate = new Date(localUpdatedAt).getTime();
+
           if (remoteDate <= localDate) {
             logInfo('BOOT', 'Media is already up to date, skipping download');
-            logInfo('BOOT', `Remote: ${assetMetadata.updated_at}, Local: ${meta.lastMediaUpdatedAt}`);
+            logInfo('BOOT', `Remote: ${assetMetadata.updated_at}, Local: ${localUpdatedAt}`);
             setCurrentStage('countdown');
             return;
           }
         }
-      } catch {
-        // meta read failure is non-critical, proceed with download
+      } else {
+        logInfo('BOOT', 'First boot detected, will download media regardless of API result');
       }
-      
-      // メディアのダウンロード URL を組み立て
+
+      // メディアのダウンロード（初回 or 更新あり）
       const mediaZipUrl = `https://github.com/s-yoshida-33/Grain-Link/releases/latest/download/sakaikitahanada-media.zip`;
-      logInfo('BOOT', `Found media update, downloading from: ${mediaZipUrl}`);
+      logInfo('BOOT', `${isFirstBoot ? 'First boot' : 'Found media update'}, downloading from: ${mediaZipUrl}`);
       await syncMediaFromZip(mediaZipUrl);
 
       // ダウンロード完了後、メディアメタデータを保存
+      const updatedAt = assetMetadata.updated_at || new Date().toISOString();
       try {
         await writeTextFile(
           MEDIA_META_FILE,
-          JSON.stringify({ lastMediaUpdatedAt: assetMetadata.updated_at }),
+          JSON.stringify({ lastMediaUpdatedAt: updatedAt }),
           { baseDir: BaseDirectory.AppLocalData }
         );
-        logInfo('BOOT', 'Saved media metadata for update check');
+        logInfo('BOOT', `Saved media metadata: ${updatedAt}`);
       } catch {
         // Non-critical failure
       }
@@ -104,6 +133,7 @@ export const BootScreen: React.FC<BootScreenProps> = ({ onBootComplete }) => {
       logError('BOOT', 'Failed to check media updates', {
         error: error instanceof Error ? error.message : String(error)
       });
+      logInfo('BOOT', 'Proceeding with startup despite media check failure');
       setCurrentStage('countdown');
     }
   }, [syncMediaFromZip]);
@@ -159,7 +189,7 @@ export const BootScreen: React.FC<BootScreenProps> = ({ onBootComplete }) => {
 
   // --- Render ---
 
-  // Phase 1: アップデートダイアログのみ表示
+  // Phase 1: アップデートダイアログ
   if (currentStage === 'update') {
     return (
       <UpdateDialog
@@ -173,7 +203,7 @@ export const BootScreen: React.FC<BootScreenProps> = ({ onBootComplete }) => {
     );
   }
 
-  // Phase 2: メディアダウンロードダイアログのみ表示
+  // Phase 2: メディアダウンロードダイアログ
   if (currentStage === 'media' && mediaStarted && downloadStatus.status !== 'idle') {
     return (
       <MediaDownloadDialog
@@ -189,7 +219,7 @@ export const BootScreen: React.FC<BootScreenProps> = ({ onBootComplete }) => {
     );
   }
 
-  // Phase 3: カウントダウン画面 (media のチェック中もフォールバック)
+  // Phase 3: カウントダウン画面
   return (
     <div className="fixed inset-0 bg-linear-to-b from-gray-900 to-black flex items-center justify-center z-50">
       <div className="w-full h-full flex flex-col items-center justify-center gap-8">
