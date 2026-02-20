@@ -53,7 +53,7 @@ export const BootScreen: React.FC<BootScreenProps> = ({ onBootComplete }) => {
   // --- Stage 2: Media check & download ---
   const startMediaCheck = useCallback(async () => {
     try {
-      logInfo('BOOT', 'Checking for media updates...');
+      logInfo('BOOT', 'Checking for media updates via GitHub Release API...');
 
       // ローカルの media-meta.json を読み込み（存在しない場合は初回起動扱い）
       let localUpdatedAt: string | null = null;
@@ -72,6 +72,20 @@ export const BootScreen: React.FC<BootScreenProps> = ({ onBootComplete }) => {
           error: e instanceof Error ? e.message : String(e)
         });
         isFirstBoot = true;
+      }
+
+      // メディアディレクトリが存在しない場合も初回起動扱い（再インストール等で AppData が残っている場合の対策）
+      if (!isFirstBoot) {
+        try {
+          const videosDirExists = await exists('videos', { baseDir: BaseDirectory.AppLocalData });
+          if (!videosDirExists) {
+            logInfo('BOOT', 'Media metadata exists but videos directory is missing, treating as first boot');
+            isFirstBoot = true;
+          }
+        } catch {
+          logInfo('BOOT', 'Failed to check videos directory, treating as first boot');
+          isFirstBoot = true;
+        }
       }
 
       // GitHub API からメディアの更新日時を取得（タイムアウト5秒）
