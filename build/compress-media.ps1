@@ -15,7 +15,7 @@ Write-Host "Compressing media for mall: $MallId" -ForegroundColor Cyan
 
 # Source and destination paths
 $sourceDir = Join-Path $PSScriptRoot "..\tmp\$MallId\assets\videos"
-$outputDir = Join-Path $PSScriptRoot "..\src-tauri\target\release\bundle"
+$outputDir = Join-Path $PSScriptRoot "..\release"
 $zipFileName = "$MallId-media.zip"
 $zipPath = Join-Path $outputDir $zipFileName
 
