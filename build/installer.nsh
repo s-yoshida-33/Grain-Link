@@ -117,20 +117,27 @@ FunctionEnd
     CreateShortCut "$SMPROGRAMS\GrainLink\Grain Link.lnk" "$INSTDIR\Grain Link.exe" "" "$INSTDIR\Grain Link.exe" 0
   ${EndIf}
 
-  ; Windows auto-start registry
+  ; --- Migration: 旧バージョンのレジストリ自動起動を削除 ---
+  DeleteRegValue HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "GrainLink"
+
+  ; --- Windows auto-start via Task Scheduler ---
   ${IfNot} ${Silent}
     ${If} $WantAutoStart == ${BST_CHECKED}
-      WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "GrainLink" "$INSTDIR\Grain Link.exe"
+      ExecWait 'schtasks /create /tn "Grain Link Auto Start" /tr "$\"$INSTDIR\Grain Link.exe$\"" /sc onlogon /delay 0000:10 /f'
     ${Else}
-      DeleteRegValue HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "GrainLink"
+      ExecWait 'schtasks /delete /tn "Grain Link Auto Start" /f'
     ${EndIf}
   ${Else}
-    ; Silent install (e.g. auto-update) - Force auto-start
-    WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "GrainLink" "$INSTDIR\Grain Link.exe"
+    ; Silent install (e.g. auto-update)
+    ; 既存タスクがあればパスを更新、なければユーザーの初回選択を尊重しそのまま
+    ExecWait 'schtasks /query /tn "Grain Link Auto Start" /fo list' $0
+    ${If} $0 == 0
+      ; タスクが存在する → パスを最新に更新
+      ExecWait 'schtasks /create /tn "Grain Link Auto Start" /tr "$\"$INSTDIR\Grain Link.exe$\"" /sc onlogon /delay 0000:10 /f'
+    ${EndIf}
   ${EndIf}
 
-  ; Create scheduled task for daily reboot at 03:00
-  ; schtasks requires admin privileges, so we use /ru SYSTEM
+  ; --- Scheduled task for daily reboot at 03:00 ---
   ExecWait 'schtasks /create /tn "Grain Link Daily Reboot" /tr "shutdown /r /t 0" /sc daily /st 03:00 /f'
 
   ; システムにアイコン等の変更を通知
@@ -169,8 +176,10 @@ FunctionEnd
 ; Custom uninstall actions
 ; -----------------------------------------
 !macro customUnInstall
+  ; Migration: 旧バージョンのレジストリ自動起動も念のため削除
   DeleteRegValue HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "GrainLink"
 
-  ; Delete scheduled task for daily reboot
+  ; Delete scheduled tasks
+  ExecWait 'schtasks /delete /tn "Grain Link Auto Start" /f'
   ExecWait 'schtasks /delete /tn "Grain Link Daily Reboot" /f'
 !macroend
