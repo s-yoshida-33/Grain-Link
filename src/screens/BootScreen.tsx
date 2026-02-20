@@ -5,12 +5,15 @@ import { useMediaDownload } from '../hooks/useMediaDownload';
 import { useAppSettings } from '../hooks/useAppSettings';
 import { logInfo, logError } from '../logs/logging';
 import { fetch } from '@tauri-apps/plugin-http';
+import { BaseDirectory, exists, readTextFile, writeTextFile } from '@tauri-apps/plugin-fs';
 
 interface BootScreenProps {
   onBootComplete: () => void;
 }
 
 type BootStage = 'update' | 'media' | 'countdown' | 'complete';
+
+const MEDIA_META_FILE = 'media-meta.json';
 
 export const BootScreen: React.FC<BootScreenProps> = ({ onBootComplete }) => {
   const { updateStatus, installUpdate } = useAutoUpdate();
@@ -22,7 +25,6 @@ export const BootScreen: React.FC<BootScreenProps> = ({ onBootComplete }) => {
   const [mediaStarted, setMediaStarted] = useState(false);
 
   // --- Stage 1: Update ---
-  // UpdateDialog が進捗をすべて表示。完了/エラー/最新版で自動的に次のステージへ。
   useEffect(() => {
     if (currentStage !== 'update') return;
 
@@ -49,7 +51,6 @@ export const BootScreen: React.FC<BootScreenProps> = ({ onBootComplete }) => {
   }, [updateStatus.status, currentStage, installUpdate]);
 
   // --- Stage 2: Media check & download ---
-  // MediaDownloadDialog が進捗を表示。
   const startMediaCheck = useCallback(async () => {
     try {
       logInfo('BOOT', 'Checking for media updates from latest.json...');
@@ -63,21 +64,48 @@ export const BootScreen: React.FC<BootScreenProps> = ({ onBootComplete }) => {
       const manifest = await response.json();
       const mediaZipUrl = manifest.media?.url;
 
-      if (mediaZipUrl) {
-        logInfo('BOOT', `Found media update: ${mediaZipUrl}`);
-        await syncMediaFromZip(mediaZipUrl);
-        // downloadStatus の変化で次のステージへ遷移
+      if (!mediaZipUrl) {
+        logInfo('BOOT', 'No media update info found in latest.json');
+        setCurrentStage('countdown');
         return;
       }
 
-      logInfo('BOOT', 'No media update info found in latest.json');
+      // Check if media is already up to date
+      try {
+        const metaExists = await exists(MEDIA_META_FILE, { baseDir: BaseDirectory.AppLocalData });
+        if (metaExists) {
+          const metaContent = await readTextFile(MEDIA_META_FILE, { baseDir: BaseDirectory.AppLocalData });
+          const meta = JSON.parse(metaContent);
+          if (meta.lastMediaUrl === mediaZipUrl) {
+            logInfo('BOOT', 'Media is already up to date, skipping download');
+            setCurrentStage('countdown');
+            return;
+          }
+        }
+      } catch {
+        // meta read failure is non-critical, proceed with download
+      }
+
+      logInfo('BOOT', `Found media update: ${mediaZipUrl}`);
+      await syncMediaFromZip(mediaZipUrl);
+
+      // Save media URL after successful download
+      try {
+        await writeTextFile(
+          MEDIA_META_FILE,
+          JSON.stringify({ lastMediaUrl: mediaZipUrl }),
+          { baseDir: BaseDirectory.AppLocalData }
+        );
+        logInfo('BOOT', 'Saved media meta for skip check');
+      } catch {
+        // Non-critical failure
+      }
     } catch (error) {
       logError('BOOT', 'Failed to check media updates', {
         error: error instanceof Error ? error.message : String(error)
       });
+      setCurrentStage('countdown');
     }
-    // メディアなし or エラー → カウントダウンへ
-    setCurrentStage('countdown');
   }, [syncMediaFromZip]);
 
   useEffect(() => {
