@@ -5,7 +5,7 @@ import { convertFileSrc } from '@tauri-apps/api/core';
 import type { Shop } from '../types/shop';
 import { useActiveShopByVideo } from '../hooks/useActiveShopByVideo';
 import { useAppSettings } from '../hooks/useAppSettings';
-import { logError, logWarn } from '../logs/logging';
+import { logError, logInfo, logWarn } from '../logs/logging';
 import { LocalVideoPlayer } from '../components/LocalVideoPlayer';
 import { ShopInfoOverlay } from '../components/ShopInfoOverlay';
 import { ImageHeader } from '../components/ImageHeader';
@@ -105,7 +105,7 @@ export const VideoSignageView: React.FC<VideoSignageViewProps> = ({ shops }) => 
             pickedEntries = ent;
             break;
           } catch (e) {
-            logWarn('LOCAL_VIDEO', 'Failed to read candidate video dir, trying next', {
+            logInfo('LOCAL_VIDEO', 'Failed to read candidate video dir, trying next', {
               candidate: c.label,
               dir: c.dirPath,
               error: e instanceof Error ? e.message : String(e),
@@ -132,7 +132,7 @@ export const VideoSignageView: React.FC<VideoSignageViewProps> = ({ shops }) => 
         videoFiles.sort();
         setPlaylist(videoFiles);
 
-        logWarn('LOCAL_VIDEO', 'Picked video directory', {
+        logInfo('LOCAL_VIDEO', 'Picked video directory', {
           dir: pickedDir,
           fileCount: videoFiles.length,
           sample: videoFiles.slice(0, 3),

@@ -33,6 +33,7 @@ const logToFile = async (
 };
 
 export function logDebug(tag: LogTag, message: string, context?: LogContext) {
+  if (import.meta.env.PROD) return;
   logToConsole('debug', tag, message, context);
   logToFile('debug', tag, message, context);
 }
