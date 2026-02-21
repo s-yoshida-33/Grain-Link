@@ -5,7 +5,7 @@ import { convertFileSrc } from '@tauri-apps/api/core';
 import type { Shop } from '../types/shop';
 import { useActiveShopByVideo } from '../hooks/useActiveShopByVideo';
 import { useAppSettings } from '../hooks/useAppSettings';
-import { logDebug, logError, logInfo, logWarn } from '../logs/logging';
+import { logDebug, logError, logWarn } from '../logs/logging';
 import { LocalVideoPlayer } from '../components/LocalVideoPlayer';
 import { ShopInfoOverlay } from '../components/ShopInfoOverlay';
 import { ImageHeader } from '../components/ImageHeader';
