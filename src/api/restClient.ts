@@ -23,13 +23,7 @@ export const fetchShopsFromApi = async (): Promise<Shop[]> => {
     const data = JSON.parse(response.body);
     const shops = normalizeShops(data, settings.apiEndpoint);
     logInfo('DATA_SYNC', `REST API returned ${shops.length} shops`);
-    
-    // デバッグ: 最初の3つのショップの画像URLをログ出力
-    if (shops.length > 0) {
-      console.log('[DEBUG] First shop imageUrl:', shops[0].imageUrl);
-      console.log('[DEBUG] First shop object:', JSON.stringify(shops[0], null, 2));
-    }
-    
+
     return shops;
   } catch (error) {
     logError('DATA_SYNC', 'Failed to fetch shops from API', {

@@ -90,15 +90,16 @@ export const BootScreen: React.FC<BootScreenProps> = ({ onBootComplete }) => {
 
       // GitHub API からメディアの更新日時を取得（タイムアウト5秒）
       logInfo('BOOT', 'Fetching media metadata from GitHub...');
+      let timeoutId: ReturnType<typeof setTimeout>;
       const timeoutPromise = new Promise<{ updated_at: string | null }>((resolve) => {
-        setTimeout(() => {
+        timeoutId = setTimeout(() => {
           logInfo('BOOT', 'GitHub API request timed out, proceeding without update check');
           resolve({ updated_at: null });
         }, 5000);
       });
 
       const assetMetadata = await Promise.race([
-        fetchMediaAssetMetadata('sakaikitahanada'),
+        fetchMediaAssetMetadata('sakaikitahanada').finally(() => clearTimeout(timeoutId)),
         timeoutPromise
       ]);
 

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { check } from '@tauri-apps/plugin-updater';
 import type { Update, DownloadEvent } from '@tauri-apps/plugin-updater';
 import { relaunch } from '@tauri-apps/plugin-process';
-import { logWarn, logError } from '../logs/logging';
+import { logInfo, logError } from '../logs/logging';
 
 const formatBytes = (bytes: number): string => {
   if (bytes === 0) return '0 B';
@@ -45,7 +45,7 @@ export const useAutoUpdate = () => {
           message: 'アップデートを確認中...',
         });
 
-        logWarn('UPDATER', 'Checking for app updates');
+        logInfo('UPDATER', 'Checking for app updates');
 
         const timeoutPromise = new Promise<never>((_, reject) =>
           setTimeout(() => reject(new Error('Update check timeout')), 30000)
@@ -54,7 +54,7 @@ export const useAutoUpdate = () => {
         const update = await Promise.race([check(), timeoutPromise]);
 
         if (update) {
-          logWarn('UPDATER', 'Update available', {
+          logInfo('UPDATER', 'Update available', {
             version: update.version,
           });
 
@@ -67,7 +67,7 @@ export const useAutoUpdate = () => {
           // 自動的にダウンロード開始
           await downloadAndInstallUpdate(update);
         } else {
-          logWarn('UPDATER', 'App is up to date');
+          logInfo('UPDATER', 'App is up to date');
           setUpdateStatus({
             status: 'uptodate',
             progress: 0,
@@ -106,7 +106,7 @@ export const useAutoUpdate = () => {
         message: 'アップデートをダウンロード中...',
       });
 
-      logWarn('UPDATER', 'Starting update download');
+      logInfo('UPDATER', 'Starting update download');
 
       const downloadStartTime = Date.now();
       let contentLength = 0;
@@ -116,7 +116,7 @@ export const useAutoUpdate = () => {
         switch (event.event) {
           case 'Started':
             contentLength = event.data.contentLength ?? 0;
-            logWarn('UPDATER', 'Download started', { contentLength });
+            logInfo('UPDATER', 'Download started', { contentLength });
             break;
           case 'Progress': {
             downloaded += event.data.chunkLength;
@@ -146,7 +146,7 @@ export const useAutoUpdate = () => {
             break;
           }
           case 'Finished':
-            logWarn('UPDATER', 'Download finished, verifying signature...');
+            logInfo('UPDATER', 'Download finished, verifying signature...');
             setUpdateStatus({
               status: 'downloading',
               progress: 100,
@@ -164,7 +164,7 @@ export const useAutoUpdate = () => {
 
       // downloadAndInstall の Promise が解決した = 署名検証もインストールも成功
       const downloadTime = (Date.now() - downloadStartTime) / 1000;
-      logWarn('UPDATER', 'Update ready to install', { duration: `${downloadTime}s` });
+      logInfo('UPDATER', 'Update ready to install', { duration: `${downloadTime}s` });
       setUpdateStatus({
         status: 'ready',
         progress: 100,
