@@ -8,13 +8,23 @@ interface ShopInfoOverlayProps {
   shop: Shop | null;
 }
 
+const AREA_HEIGHT = 704;
+
+/*
+ * ジャンルブロックの実高さ計算:
+ *   border: 4px × 2 = 8px
+ *   padding: 10px × 2 = 20px
+ *   text-[18px] line-height ≒ 24px
+ *   合計: 8 + 20 + 24 = 52px
+ */
+const GENRE_BLOCK_HEIGHT = 52;
+
 export const ShopInfoOverlay: React.FC<ShopInfoOverlayProps> = ({ shop }) => {
   const { settings } = useAppSettings();
   const mallId = settings?.mallId || 'sakaikitahanada';
   const videoBackBg = `./assets/malls/${mallId}/video-back.webp`;
   const logoFrame = `./assets/malls/${mallId}/logo-frame.webp`;
 
-  // 背景スタイル
   const containerStyle: React.CSSProperties = {
     backgroundImage: `url('${videoBackBg}')`,
     backgroundSize: 'cover',
@@ -26,7 +36,6 @@ export const ShopInfoOverlay: React.FC<ShopInfoOverlayProps> = ({ shop }) => {
   const [shopB, setShopB] = useState<Shop | null>(null);
   const [activeShop, setActiveShop] = useState<'A' | 'B'>('A');
   
-  // ロゴ URL キャッシュ
   const [logoUrlA, setLogoUrlA] = useState<string | undefined>(undefined);
   const [logoUrlB, setLogoUrlB] = useState<string | undefined>(undefined);
 
@@ -43,7 +52,6 @@ export const ShopInfoOverlay: React.FC<ShopInfoOverlayProps> = ({ shop }) => {
     }
   }, [shop, activeShop, shopA, shopB]);
 
-  // ロゴ URL 変換処理
   useEffect(() => {
     const processLogo = (shopLogoPath: string | undefined): string | undefined => {
       if (!shopLogoPath) return undefined;
@@ -66,18 +74,26 @@ export const ShopInfoOverlay: React.FC<ShopInfoOverlayProps> = ({ shop }) => {
 
     return (
     <div 
-      className="absolute top-0 left-0 w-full h-full flex flex-col items-center justify-start p-8 text-center text-[#4b2c20] transition-opacity duration-1000 ease-in-out"
-      style={{ ...containerStyle, opacity: isActive ? 1 : 0, zIndex: isActive ? 2 : 1 }}
+      className="absolute top-0 left-0 w-full text-center text-[#4b2c20] transition-opacity duration-1000 ease-in-out"
+      style={{ ...containerStyle, height: `${AREA_HEIGHT}px`, opacity: isActive ? 1 : 0, zIndex: isActive ? 2 : 1 }}
     >
       {!targetShop ? (
-        <h2 className="text-5xl font-black px-8 py-4 rounded-lg bg-white/80">
-          Coming Soon
-        </h2>
+        <div className="w-full h-full flex items-center justify-center">
+          <h2 className="text-5xl font-black px-8 py-4 rounded-lg bg-white/80">
+            Coming Soon
+          </h2>
+        </div>
       ) : (
-        <div className="flex flex-col items-center w-full h-full">
+        <div 
+          className="w-full flex flex-col items-center justify-center"
+          style={{ height: `${AREA_HEIGHT}px`, gap: '10px' }}
+        >
           
-          {/* 1. ロゴ表示エリア */}
-          <div className="relative flex justify-center items-center shrink-0" style={{ width: '415px', height: '415px', marginTop: '4px', marginBottom: '30px' }}>
+          {/* ブロック1: ロゴ（フレーム）— 固定サイズ */}
+          <div 
+            className="relative flex justify-center items-center shrink-0" 
+            style={{ width: '560px', height: '560px' }}
+          >
             <img 
               src={logoFrame}
               alt=""
@@ -88,28 +104,29 @@ export const ShopInfoOverlay: React.FC<ShopInfoOverlayProps> = ({ shop }) => {
                 src={logoUrl} 
                 alt={`${displayName} Logo`} 
                 className="object-contain relative z-10"
-                style={{ width: '320px' }}
+                style={{ maxWidth: '430px', maxHeight: '430px' }}
               />
             ) : (
               <div className="h-24 w-full flex items-center justify-center text-2xl font-bold opacity-30 relative z-10" />
             )}
           </div>
 
-          {/* 2. スペーサー：30px固定 */}
-          <div style={{ height: '30px' }}></div>
-        
-          {/* 3. 店舗名とジャンルの塊 */}
-          <div className="flex flex-col items-center">
-            <h2 className="text-[60px] font-black leading-tight tracking-tight mb-7.5">
-              {displayName}
-            </h2>
+          {/* ブロック2: 店舗名 */}
+          <h2 className="text-[40px] font-black leading-tight tracking-tight shrink-0">
+            {displayName}
+          </h2>
 
+          {/* ブロック3: ジャンル詳細 — ジャンル有無に関わらず同じ高さの枠 */}
+          <div 
+            className="shrink-0 flex items-center justify-center"
+            style={{ height: `${GENRE_BLOCK_HEIGHT}px` }}
+          >
             {displayGenre && (
               <div 
-                className="inline-block border-6 border-[#bf995b] rounded-full" 
-                style={{ paddingLeft: '60px', paddingRight: '60px', paddingTop: '12px', paddingBottom: '12px' }}
+                className="inline-block border-4 border-[#bf995b] rounded-full" 
+                style={{ paddingLeft: '20px', paddingRight: '20px', paddingTop: '10px', paddingBottom: '10px' }}
               >
-                <p className="text-[32px] font-bold text-[#4b2c20]">
+                <p className="text-[18px] font-bold text-[#4b2c20]">
                   {displayGenre}
                 </p>
               </div>
