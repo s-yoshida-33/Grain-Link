@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { convertFileSrc } from '@tauri-apps/api/core';
-import { logError, logWarn } from '../logs/logging';
+import { logError, logDebug, logInfo, logWarn } from '../logs/logging';
 
 interface LocalVideoPlayerProps {
   playlist: string[];
@@ -46,7 +46,7 @@ export const LocalVideoPlayer: React.FC<LocalVideoPlayerProps> = ({
           const timer = setTimeout(() => {
             if (ref.current) {
               ref.current.play().catch(e => {
-                logWarn('LOCAL_VIDEO', `Auto-play failed for ${player}`, {
+                logWarn('LOCAL_VIDEO', `Auto-play blocked for ${player}`, {
                   error: e.message
                 });
               });
@@ -55,7 +55,7 @@ export const LocalVideoPlayer: React.FC<LocalVideoPlayerProps> = ({
           return () => clearTimeout(timer);
         }
         
-        logWarn('LOCAL_VIDEO', `Video prepared for player ${player}`, {
+        logDebug('LOCAL_VIDEO', `Video prepared for player ${player}`, {
           fileIndex: index,
           filename,
           autoPlay,
@@ -85,7 +85,7 @@ export const LocalVideoPlayer: React.FC<LocalVideoPlayerProps> = ({
       const fileName = currentFile.split(/[/\\]/).pop() || currentFile;
       onVideoChange(fileName);
 
-      logWarn('LOCAL_VIDEO', 'Playlist initialized', {
+      logInfo('LOCAL_VIDEO', 'Playlist initialized', {
         playlistLength: playlist.length,
         firstFile: fileName,
       });
@@ -103,7 +103,7 @@ export const LocalVideoPlayer: React.FC<LocalVideoPlayerProps> = ({
     const inactivePlayer = getInactivePlayer(nextPlayer);
     const futureIndex = (nextIndex + 1) % playlist.length;
 
-    logWarn('LOCAL_VIDEO', 'Video ended, starting fade transition', {
+    logDebug('LOCAL_VIDEO', 'Video ended, starting fade transition', {
       from: activePlayer,
       to: nextPlayer,
       nextIndex,
@@ -118,7 +118,7 @@ export const LocalVideoPlayer: React.FC<LocalVideoPlayerProps> = ({
     const nextFile = playlist[nextIndex];
     const fileName = nextFile.split(/[/\\]/).pop() || nextFile;
     onVideoChange(fileName);
-    logWarn('LOCAL_VIDEO', 'Video change notified at fade start', { 
+    logDebug('LOCAL_VIDEO', 'Video change notified at fade start', {
       nextIndex, 
       fileName,
     });
@@ -128,7 +128,7 @@ export const LocalVideoPlayer: React.FC<LocalVideoPlayerProps> = ({
       const ref = nextPlayer === 'A' ? videoRefA : videoRefB;
       if (ref.current) {
         ref.current.play().catch(e => {
-          logWarn('LOCAL_VIDEO', `Play failed for ${nextPlayer}`, {
+          logWarn('LOCAL_VIDEO', `Play failed for player ${nextPlayer}`, {
             error: e.message
           });
         });
@@ -138,7 +138,7 @@ export const LocalVideoPlayer: React.FC<LocalVideoPlayerProps> = ({
     // 3. フェード完了後：今フェードアウトしたプレイヤーに次の動画をプリロード
     const prepareTimer = setTimeout(() => {
       preparePlayer(inactivePlayer, futureIndex, false);
-      logWarn('LOCAL_VIDEO', 'Next video preloaded for transition', { 
+      logDebug('LOCAL_VIDEO', 'Next video preloaded for transition', {
         futureIndex, 
         player: inactivePlayer,
       });

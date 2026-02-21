@@ -34,13 +34,7 @@ export const ShopListView: React.FC<ShopListViewProps> = ({ shops, gridConfig })
       return numA.localeCompare(numB, undefined, { numeric: true });
     });
 
-    console.log('[DEBUG] ShopListView filter:', {
-      totalShops: shops.length,
-      filteredShops: filteredShops.length,
-      targetGenre: TARGET_GENRE,
-      targetArea: TARGET_AREA,
-      sampleShop: shops[0] ? { genre: (shops[0] as any).genre, area: (shops[0] as any).area } : null
-    });
+
 
     // 2. 最大12枠分の配列を作成
     const slots: (Shop | undefined)[] = new Array(MAX_SLOTS).fill(undefined);
