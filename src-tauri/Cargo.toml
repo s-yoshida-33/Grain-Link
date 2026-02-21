@@ -1,6 +1,6 @@
 [package]
 name = "grain-link"
-version = "0.2.2"
+version = "0.3.2"
 description = "Grain Link Tauri application"
 authors = ["Toei Techno International Inc."]
 license = "UNLICENSED"
