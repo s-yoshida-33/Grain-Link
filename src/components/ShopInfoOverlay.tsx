@@ -14,10 +14,10 @@ const AREA_HEIGHT = 704;
  * ジャンルブロックの実高さ計算:
  *   border: 4px × 2 = 8px
  *   padding: 10px × 2 = 20px
- *   text-[18px] line-height ≒ 24px
- *   合計: 8 + 20 + 24 = 52px
+ *   text-[24px] line-height ≒ 30px
+ *   合計: 8 + 20 + 30 = 58px
  */
-const GENRE_BLOCK_HEIGHT = 52;
+const GENRE_BLOCK_HEIGHT = 58;
 
 export const ShopInfoOverlay: React.FC<ShopInfoOverlayProps> = ({ shop }) => {
   const { settings } = useAppSettings();
@@ -86,13 +86,13 @@ export const ShopInfoOverlay: React.FC<ShopInfoOverlayProps> = ({ shop }) => {
       ) : (
         <div 
           className="w-full flex flex-col items-center justify-center"
-          style={{ height: `${AREA_HEIGHT}px`, gap: '10px' }}
+          style={{ height: `${AREA_HEIGHT}px`, gap: '24px' }}
         >
           
           {/* ブロック1: ロゴ（フレーム）— 固定サイズ */}
           <div 
             className="relative flex justify-center items-center shrink-0" 
-            style={{ width: '560px', height: '560px' }}
+            style={{ width: '440px', height: '440px' }}
           >
             <img 
               src={logoFrame}
@@ -104,7 +104,7 @@ export const ShopInfoOverlay: React.FC<ShopInfoOverlayProps> = ({ shop }) => {
                 src={logoUrl} 
                 alt={`${displayName} Logo`} 
                 className="object-contain relative z-10"
-                style={{ maxWidth: '430px', maxHeight: '430px' }}
+                style={{ maxWidth: '340px', maxHeight: '340px' }}
               />
             ) : (
               <div className="h-24 w-full flex items-center justify-center text-2xl font-bold opacity-30 relative z-10" />
@@ -112,7 +112,7 @@ export const ShopInfoOverlay: React.FC<ShopInfoOverlayProps> = ({ shop }) => {
           </div>
 
           {/* ブロック2: 店舗名 */}
-          <h2 className="text-[40px] font-black leading-tight tracking-tight shrink-0">
+          <h2 className="text-[64px] font-black leading-tight tracking-tight shrink-0">
             {displayName}
           </h2>
 
@@ -124,9 +124,9 @@ export const ShopInfoOverlay: React.FC<ShopInfoOverlayProps> = ({ shop }) => {
             {displayGenre && (
               <div 
                 className="inline-block border-4 border-[#bf995b] rounded-full" 
-                style={{ paddingLeft: '20px', paddingRight: '20px', paddingTop: '10px', paddingBottom: '10px' }}
+                style={{ paddingLeft: '30px', paddingRight: '30px', paddingTop: '10px', paddingBottom: '10px' }}
               >
-                <p className="text-[18px] font-bold text-[#4b2c20]">
+                <p className="text-[24px] font-bold text-[#4b2c20]">
                   {displayGenre}
                 </p>
               </div>
