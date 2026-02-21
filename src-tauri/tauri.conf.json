@@ -47,20 +47,6 @@
           "permissions": [
             "updater:default"
           ]
-        },
-        {
-          "identifier": "http-scope",
-          "windows": ["main"],
-          "permissions": [
-            {
-              "identifier": "http:default",
-              "allow": [
-                { "url": "https://api.github.com/**" },
-                { "url": "https://github.com/**" },
-                { "url": "https://objects.githubusercontent.com/**" }
-              ]
-            }
-          ]
         }
       ]
     }
