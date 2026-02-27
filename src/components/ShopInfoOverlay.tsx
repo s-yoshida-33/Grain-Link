@@ -61,10 +61,10 @@ export const ShopInfoOverlay: React.FC<ShopInfoOverlayProps> = ({ shop }) => {
       return convertFileSrc(rawPath);
     };
 
-    if (activeShop === 'A' && shopA?.shopLogoThumb640x640LocalPath) {
-      setLogoUrlA(processLogo(shopA.shopLogoThumb640x640LocalPath));
-    } else if (activeShop === 'B' && shopB?.shopLogoThumb640x640LocalPath) {
-      setLogoUrlB(processLogo(shopB.shopLogoThumb640x640LocalPath));
+    if (activeShop === 'A' && shopA?.shopLogoThumbW640LocalPath) {
+      setLogoUrlA(processLogo(shopA.shopLogoThumbW640LocalPath));
+    } else if (activeShop === 'B' && shopB?.shopLogoThumbW640LocalPath) {
+      setLogoUrlB(processLogo(shopB.shopLogoThumbW640LocalPath));
     }
   }, [activeShop, shopA?.id, shopB?.id]);
 
