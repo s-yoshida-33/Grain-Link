@@ -19,7 +19,7 @@ interface BridgeShop {
   photo2?: string;
   photo2ThumbW640LocalPath?: string; // これを使用
   shopLogo?: string;
-  shopLogoThumb640x640LocalPath?: string;
+  shopLogoThumbW640LocalPath?: string;
   // 以下後方互換用
   shop_id?: string | number;
   shop_name?: string;
@@ -80,7 +80,7 @@ export const normalizeShops = (rawData: any, apiEndpoint?: string): Shop[] => {
       apiEndpoint
     );
 
-    const shopLogoThumb640x640LocalPath = toDisplayPath(item.shopLogoThumb640x640LocalPath, apiEndpoint);
+    const shopLogoThumbW640LocalPath = toDisplayPath(item.shopLogoThumbW640LocalPath, apiEndpoint);
 
     return {
       id: item.shopId ?? item.shop_id ?? "",
@@ -89,7 +89,7 @@ export const normalizeShops = (rawData: any, apiEndpoint?: string): Shop[] => {
       imageUrl,
       genre: item.genre,
       area: item.area,
-      shopLogoThumb640x640LocalPath,
+      shopLogoThumbW640LocalPath,
       genreMemo: item.genreMemo,
       number: item.number,
       openTime: item.openTime,
