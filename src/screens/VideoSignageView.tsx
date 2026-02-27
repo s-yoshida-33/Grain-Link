@@ -49,7 +49,7 @@ export const VideoSignageView: React.FC<VideoSignageViewProps> = ({ shops }) => 
     };
 
     preload(nextShop.imageUrl);
-    preload(nextShop.shopLogoLocalPath);
+    preload(nextShop.shopLogoThumb640x640LocalPath);
   }, [nextShop]);
 
   useEffect(() => {
