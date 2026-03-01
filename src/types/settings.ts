@@ -12,6 +12,12 @@ export interface MediaDownloadSettings {
   retryAttempts?: number;
 }
 
+export interface SleepSettings {
+  enabled: boolean;
+  startTime: string; // 営業開始時刻 "HH:MM" 形式
+  endTime: string;   // 営業終了時刻 "HH:MM" 形式
+}
+
 export interface AppSettings {
   appMode: AppMode;
   mallId: string;
@@ -20,4 +26,5 @@ export interface AppSettings {
   shopListGrid: ShopListGridConfig;
   isMuted?: boolean;
   mediaDownloadSettings?: MediaDownloadSettings;
+  sleepSettings?: SleepSettings;
 }
