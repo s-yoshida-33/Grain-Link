@@ -18,7 +18,18 @@ export const VideoSignageView: React.FC<VideoSignageViewProps> = ({ shops }) => 
   const [playlist, setPlaylist] = useState<string[]>([]);
   const [currentVideoFile, setCurrentVideoFile] = useState<string>("");
   const [resolvedVideoDir, setResolvedVideoDir] = useState<string>("");
+  const [isSleeping, setIsSleeping] = useState(false);
   const { settings } = useAppSettings();
+
+  // 暗転状態の変化を監視し、暗転中は音声をミュートにする
+  useEffect(() => {
+    const handleSleepChange = (e: Event) => {
+      const detail = (e as CustomEvent<{ sleeping: boolean }>).detail;
+      setIsSleeping(detail.sleeping);
+    };
+    window.addEventListener('screen-sleep-change', handleSleepChange);
+    return () => window.removeEventListener('screen-sleep-change', handleSleepChange);
+  }, []);
 
   const activeShop = useActiveShopByVideo(shops, currentVideoFile);
 
@@ -176,7 +187,7 @@ export const VideoSignageView: React.FC<VideoSignageViewProps> = ({ shops }) => 
         <LocalVideoPlayer
           playlist={playlist}
           onVideoChange={setCurrentVideoFile}
-          muted={settings?.isMuted ?? false}
+          muted={isSleeping || (settings?.isMuted ?? false)}
         />
       </div>
 
