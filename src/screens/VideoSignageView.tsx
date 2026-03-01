@@ -61,7 +61,7 @@ export const VideoSignageView: React.FC<VideoSignageViewProps> = ({ shops }) => 
     };
 
     preload(nextShop.imageUrl);
-    preload(nextShop.shopLogoLocalPath);
+    preload(nextShop.shopLogoThumbW640LocalPath);
   }, [nextShop]);
 
   useEffect(() => {
@@ -128,8 +128,6 @@ export const VideoSignageView: React.FC<VideoSignageViewProps> = ({ shops }) => 
           throw new Error('No readable video directory was found');
         }
 
-        setResolvedVideoDir(pickedDir);
-
         const videoFiles = await Promise.all(
           pickedEntries
             .filter((entry) => entry.isFile && entry.name && /\.(mp4|webm|mov)$/i.test(entry.name))
@@ -190,24 +188,6 @@ export const VideoSignageView: React.FC<VideoSignageViewProps> = ({ shops }) => 
           muted={isSleeping || (settings?.isMuted ?? false)}
         />
       </div>
-
-      {import.meta.env.DEV && (
-        <div className="absolute bottom-4 left-4 bg-black/70 text-white text-xs p-3 rounded leading-relaxed space-y-1 z-50 max-w-[60vw]">
-          <div>Video dir: {resolvedVideoDir || 'n/a'}</div>
-          <div>Playlist: {playlist.length} files</div>
-          <div>Current video: {currentVideoFile || 'n/a'}</div>
-          {playlist.length > 0 && (
-            <div className="text-yellow-300">
-              First video file:// URL:
-              <div className="font-mono text-xs wrap-break-word">
-                file://{playlist[0]?.replace(/\\/g, '/')}
-              </div>
-            </div>
-          )}
-          <div>Image URL: {activeShop?.imageUrl || 'n/a'}</div>
-          <div>Logo URL: {activeShop?.shopLogoLocalPath || 'n/a'}</div>
-        </div>
-      )}
     </div>
   );
 };
