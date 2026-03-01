@@ -34,6 +34,11 @@ export const ScreenSleep: React.FC = () => {
   const { settings } = useAppSettings();
   const [sleeping, setSleeping] = useState(false);
 
+  // 暗転状態が変化したらカスタムイベントで通知する（音声ミュート制御用）
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent('screen-sleep-change', { detail: { sleeping } }));
+  }, [sleeping]);
+
   useEffect(() => {
     const sleep = settings?.sleepSettings ?? DEFAULT_SLEEP;
     if (!sleep.enabled) {
