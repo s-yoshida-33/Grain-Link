@@ -17,7 +17,6 @@ interface VideoSignageViewProps {
 export const VideoSignageView: React.FC<VideoSignageViewProps> = ({ shops }) => {
   const [playlist, setPlaylist] = useState<string[]>([]);
   const [currentVideoFile, setCurrentVideoFile] = useState<string>("");
-  const [resolvedVideoDir, setResolvedVideoDir] = useState<string>("");
   const [isSleeping, setIsSleeping] = useState(false);
   const { settings } = useAppSettings();
 
