@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { exit } from '@tauri-apps/plugin-process';
 import { loadSettings, saveSettings } from '../utils/settings';
-import type { AppMode } from '../types/settings';
+import type { AppMode, SleepSettings } from '../types/settings';
 
 interface ContextMenuProps {
   children: React.ReactNode;
@@ -14,6 +14,8 @@ const MODE_LABELS: Record<AppMode, string> = {
   SHOP_LIST: 'ショップ一覧モード',
 };
 
+const DEFAULT_SLEEP: SleepSettings = { enabled: false, startTime: '10:00', endTime: '21:00' };
+
 type Position = { x: number; y: number };
 
 export const ContextMenu: React.FC<ContextMenuProps> = ({ children }) => {
@@ -21,6 +23,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ children }) => {
   const [position, setPosition] = useState<Position>({ x: 0, y: 0 });
   const [currentMode, setCurrentMode] = useState<AppMode | null>(null);
   const [isMuted, setIsMuted] = useState(false);
+  const [sleepSettings, setSleepSettings] = useState<SleepSettings>(DEFAULT_SLEEP);
 
   const hideMenu = useCallback(() => setVisible(false), []);
 
@@ -32,6 +35,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ children }) => {
         const settings = await loadSettings();
         setCurrentMode(settings.appMode);
         setIsMuted(settings.isMuted ?? false);
+        setSleepSettings(settings.sleepSettings ?? DEFAULT_SLEEP);
       } catch {
         setCurrentMode(null);
       }
@@ -89,6 +93,72 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ children }) => {
     }
   }, [hideMenu, isMuted]);
 
+  // スリープのオンオフを切り替える
+  const toggleSleep = useCallback(async () => {
+    hideMenu();
+    try {
+      const settings = await loadSettings();
+      const newSleep: SleepSettings = {
+        ...(settings.sleepSettings ?? DEFAULT_SLEEP),
+        enabled: !sleepSettings.enabled,
+      };
+      settings.sleepSettings = newSleep;
+      await saveSettings(settings);
+      setSleepSettings(newSleep);
+      window.dispatchEvent(new CustomEvent('reload-settings'));
+    } catch {
+      // 保存失敗時は何もしない
+    }
+  }, [hideMenu, sleepSettings]);
+
+  // 営業開始時刻を変更する
+  const changeSleepStartTime = useCallback(async () => {
+    hideMenu();
+    const input = window.prompt(
+      '営業開始時刻を入力してください（HH:MM）',
+      sleepSettings.startTime,
+    );
+    if (!input || !/^\d{1,2}:\d{2}$/.test(input)) return;
+
+    try {
+      const settings = await loadSettings();
+      const newSleep: SleepSettings = {
+        ...(settings.sleepSettings ?? DEFAULT_SLEEP),
+        startTime: input,
+      };
+      settings.sleepSettings = newSleep;
+      await saveSettings(settings);
+      setSleepSettings(newSleep);
+      window.dispatchEvent(new CustomEvent('reload-settings'));
+    } catch {
+      // 保存失敗時は何もしない
+    }
+  }, [hideMenu, sleepSettings]);
+
+  // 営業終了時刻を変更する
+  const changeSleepEndTime = useCallback(async () => {
+    hideMenu();
+    const input = window.prompt(
+      '営業終了時刻を入力してください（HH:MM）',
+      sleepSettings.endTime,
+    );
+    if (!input || !/^\d{1,2}:\d{2}$/.test(input)) return;
+
+    try {
+      const settings = await loadSettings();
+      const newSleep: SleepSettings = {
+        ...(settings.sleepSettings ?? DEFAULT_SLEEP),
+        endTime: input,
+      };
+      settings.sleepSettings = newSleep;
+      await saveSettings(settings);
+      setSleepSettings(newSleep);
+      window.dispatchEvent(new CustomEvent('reload-settings'));
+    } catch {
+      // 保存失敗時は何もしない
+    }
+  }, [hideMenu, sleepSettings]);
+
   // 切り替え先のモード
   const targetMode: AppMode | null = currentMode === 'VIDEO_AD' ? 'SHOP_LIST'
     : currentMode === 'SHOP_LIST' ? 'VIDEO_AD'
@@ -104,6 +174,19 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ children }) => {
     {
       label: isMuted ? 'ミュート解除' : 'ミュート',
       action: toggleMute,
+      separator: true,
+    },
+    {
+      label: `焼き付き防止: ${sleepSettings.enabled ? 'オン' : 'オフ'}`,
+      action: toggleSleep,
+    },
+    {
+      label: `開始時刻: ${sleepSettings.startTime}`,
+      action: changeSleepStartTime,
+    },
+    {
+      label: `終了時刻: ${sleepSettings.endTime}`,
+      action: changeSleepEndTime,
       separator: true,
     },
     { label: '手動更新 (Releasesを開く)', action: openReleases, separator: true },
