@@ -57,6 +57,11 @@ export const GidoApp: React.FC = () => {
       sseClient.on('status_change', ({ status }) => {
         // setIsSseConnected(status === 'connected');
         logInfo('DATA_SYNC', 'SSE Status changed', { status });
+
+        if (status === 'connected') {
+          logInfo('DATA_SYNC', 'Bridge is ready. Retrying REST API fetch...');
+          loadShops();
+        }
       });
 
       // 'shops' イベント: JSONデータを直接反映
@@ -73,7 +78,7 @@ export const GidoApp: React.FC = () => {
          logInfo('DATA_SYNC', 'Received "update" event via SSE - Reloading from API');
          loadShops();
       });
-      
+
       // エンドポイントが設定されていれば接続
       if (settings.apiEndpoint) {
         await sseClient.connect(settings.apiEndpoint);
@@ -114,7 +119,7 @@ export const GidoApp: React.FC = () => {
   return (
     <div className="w-full h-full relative">
        {/* デバッグ用ステータス表示 (必要なら削除) */}
-       {/* 
+       {/*
        <div className="absolute top-0 right-0 p-2 bg-black/50 text-white text-xs z-50">
           Mode: {settings.appMode} | SSE: {isSseConnected ? 'OK' : 'Disconnected'}
        </div>
