@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { check } from '@tauri-apps/plugin-updater';
 import type { Update, DownloadEvent } from '@tauri-apps/plugin-updater';
 import { relaunch } from '@tauri-apps/plugin-process';
+import { invoke } from '@tauri-apps/api/core';
 import { logInfo, logError } from '../logs/logging';
 
 const formatBytes = (bytes: number): string => {
@@ -100,6 +101,9 @@ export const useAutoUpdate = () => {
 
   const downloadAndInstallUpdate = async (update: Update) => {
     try {
+      // Pause watchdog during update — downloadAndInstall blocks the WebView
+      await invoke('pause_watchdog').catch(() => {});
+
       setUpdateStatus({
         status: 'downloading',
         progress: 0,
@@ -171,6 +175,9 @@ export const useAutoUpdate = () => {
         message: 'アップデート完了。5秒後に再起動します。',
       });
     } catch (error) {
+      // Resume watchdog on failure so the app can recover from future freezes
+      await invoke('resume_watchdog').catch(() => {});
+
       const errorMessage = error instanceof Error ? error.message : String(error);
       logError('UPDATER', 'Failed to download/install update', {
         error: errorMessage,
