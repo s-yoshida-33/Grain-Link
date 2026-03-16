@@ -246,6 +246,7 @@ fn send_slack_notification(level: &str, tag: &str, message: &str, is_recovery: b
 
 const ALERT_SCOPES: &[&str] = &[
     "LOCAL_VIDEO",
+    "VIDEO_VALIDATION",
     "DATA_SYNC",
     "CONFIG",
     "RENDERER_ERROR",
@@ -426,6 +427,12 @@ async fn sync_media_from_zip(app: tauri::AppHandle, url: String) -> Result<Downl
         .ok_or("Failed to get local data directory")?
         .join("com.tti.grain-link")
         .join("videos");
+
+    // Clean up existing videos directory to ensure stale files are removed on differential updates
+    if extract_dir.exists() {
+        fs::remove_dir_all(&extract_dir)
+            .map_err(|e| format!("Failed to clean videos directory: {}", e))?;
+    }
 
     fs::create_dir_all(&extract_dir)
         .map_err(|e| format!("Failed to create videos directory: {}", e))?;

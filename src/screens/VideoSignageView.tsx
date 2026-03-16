@@ -127,27 +127,70 @@ export const VideoSignageView: React.FC<VideoSignageViewProps> = ({ shops }) => 
           throw new Error('No readable video directory was found');
         }
 
-        const videoFiles = await Promise.all(
+        const allVideoFiles = await Promise.all(
           pickedEntries
             .filter((entry) => entry.isFile && entry.name && /\.(mp4|webm|mov)$/i.test(entry.name))
             .map(async (entry) => {
-              // 確実に絶対パスへ結合し、パス区切りを統一して asset 変換で詰まらないようにする
               const absolutePath = await join(pickedDir, entry.name as string);
               return absolutePath.replace(/\\/g, '/');
             })
         );
 
-        videoFiles.sort();
-        setPlaylist(videoFiles);
+        allVideoFiles.sort();
+
+        // Validate video filenames against shopIds — skip videos with no matching shop
+        const validVideoFiles: string[] = [];
+        const skippedVideos: string[] = [];
+
+        if (shops.length > 0) {
+          for (const videoPath of allVideoFiles) {
+            const baseName = videoPath.split(/[/\\]/).pop() || '';
+            const nameWithoutExt = baseName.replace(/\.[^/.]+$/, '');
+
+            const hasMatchingShop = shops.some(s => {
+              if (String(s.id) === nameWithoutExt) return true;
+              if (Number(s.id) === Number(nameWithoutExt)) return true;
+              return false;
+            });
+
+            if (hasMatchingShop) {
+              validVideoFiles.push(videoPath);
+            } else {
+              skippedVideos.push(baseName);
+            }
+          }
+
+          if (skippedVideos.length > 0) {
+            logWarn('VIDEO_VALIDATION',
+              `Skipped ${skippedVideos.length} video(s) with no matching shopId`,
+              {
+                skippedFiles: skippedVideos,
+                totalVideos: allVideoFiles.length,
+                validVideos: validVideoFiles.length,
+                shopIds: shops.map(s => String(s.id)),
+              },
+            );
+          }
+        } else {
+          validVideoFiles.push(...allVideoFiles);
+        }
+
+        setPlaylist(validVideoFiles);
 
         logDebug('LOCAL_VIDEO', 'Picked video directory', {
           dir: pickedDir,
-          fileCount: videoFiles.length,
-          sample: videoFiles.slice(0, 3),
+          fileCount: validVideoFiles.length,
+          totalOnDisk: allVideoFiles.length,
+          skipped: skippedVideos.length,
+          sample: validVideoFiles.slice(0, 3),
         });
 
-        if (videoFiles.length === 0) {
-          logWarn('LOCAL_VIDEO', 'No videos found in directory', { dir: pickedDir });
+        if (validVideoFiles.length === 0) {
+          logWarn('LOCAL_VIDEO', 'No playable videos after validation', {
+            dir: pickedDir,
+            totalOnDisk: allVideoFiles.length,
+            skippedFiles: skippedVideos,
+          });
         }
       } catch (error) {
         logError('LOCAL_VIDEO', 'Failed to fetch video list', {
