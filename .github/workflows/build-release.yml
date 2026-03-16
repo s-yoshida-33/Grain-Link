@@ -79,9 +79,6 @@ jobs:
             release/latest.json
             release/GrainLinkSetup-x64-*.exe
             release/GrainLinkSetup-x64-*.exe.sig
-            release/GrainLinkSetup-x64-*.msi
-            release/GrainLinkSetup-x64-*.msi.sig
-            release/*.zip
           token: ${{ secrets.GITHUB_TOKEN }}
 
   notify:
