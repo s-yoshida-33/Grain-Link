@@ -8,7 +8,6 @@ const FREEZE_WARN_THRESHOLD = 5;
 const FREEZE_SKIP_THRESHOLD = 30;
 const STUCK_WARN_MS = 10_000;
 const STUCK_SKIP_MS = 30_000;
-const HEARTBEAT_INTERVAL_MS = 60_000;
 
 function getBufferedRanges(video: HTMLVideoElement): string {
   try {
@@ -63,7 +62,6 @@ export const LocalVideoPlayer: React.FC<LocalVideoPlayerProps> = ({
   // Watchdog
   const lastTimeRef = useRef(0);
   const freezeCounterRef = useRef(0);
-  const lastHeartbeatRef = useRef(Date.now());
   const lastGoodStateRef = useRef(Date.now());
 
   // Fade transition timers (for cleanup)
@@ -227,7 +225,6 @@ export const LocalVideoPlayer: React.FC<LocalVideoPlayerProps> = ({
       });
 
       lastGoodStateRef.current = Date.now();
-      lastHeartbeatRef.current = Date.now();
       setIsInitialized(true);
     }
   }, [playlist, isInitialized, preparePlayer, onVideoChange]);
@@ -352,7 +349,7 @@ export const LocalVideoPlayer: React.FC<LocalVideoPlayerProps> = ({
     });
   }, []);
 
-  // Watchdog: freeze detection, stuck detection, heartbeat
+  // Watchdog: freeze detection, stuck detection
   useEffect(() => {
     if (playlist.length === 0 || !isInitialized) return;
 
@@ -365,20 +362,6 @@ export const LocalVideoPlayer: React.FC<LocalVideoPlayerProps> = ({
       const currentFile = playlistRef.current[currentIndexRef.current] || '';
       const fileName = currentFile.split(/[/\\]/).pop() || '';
       const isReady = video.readyState >= 3;
-
-      // Heartbeat (every 60s)
-      if (now - lastHeartbeatRef.current > HEARTBEAT_INTERVAL_MS) {
-        logInfo('LOCAL_VIDEO', 'Watchdog heartbeat', {
-          file: fileName,
-          player: active,
-          currentTime: video.currentTime?.toFixed(1),
-          duration: video.duration?.toFixed(1),
-          readyState: video.readyState,
-          paused: video.paused,
-          buffered: getBufferedRanges(video),
-        });
-        lastHeartbeatRef.current = now;
-      }
 
       // Skip checks while fading or transitioning
       if (isFadingRef.current || isTransitioningRef.current) return;
