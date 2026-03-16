@@ -1,0 +1,146 @@
+import { useEffect, useState, useCallback, useRef } from 'react';
+import { BaseDirectory, exists, readTextFile, writeTextFile } from '@tauri-apps/plugin-fs';
+import { useMediaDownload } from './useMediaDownload';
+import { useAppSettings } from './useAppSettings';
+import { fetchMediaAssetMetadata } from '../api/restClient';
+import { logInfo, logError } from '../logs/logging';
+
+export interface MediaSyncStatus {
+  status: 'idle' | 'checking' | 'downloading' | 'done' | 'error';
+  progress: number;
+  message: string;
+}
+
+const MEDIA_META_FILE = 'media-meta.json';
+
+/**
+ * Automatically checks for media updates on mount and downloads if needed.
+ * Returns a unified mediaStatus compatible with PatchScreen.
+ */
+export const useMediaSync = () => {
+  const { downloadStatus, syncMediaFromZip } = useMediaDownload();
+  const { settings } = useAppSettings();
+  const [mediaStatus, setMediaStatus] = useState<MediaSyncStatus>({
+    status: 'idle',
+    progress: 0,
+    message: '',
+  });
+  const startedRef = useRef(false);
+
+  const runMediaCheck = useCallback(async () => {
+    try {
+      setMediaStatus({ status: 'checking', progress: 0, message: 'メディアデータを確認中…' });
+      logInfo('BOOT', 'Checking for media updates via GitHub Release API...');
+
+      let localUpdatedAt: string | null = null;
+      let isFirstBoot = false;
+
+      try {
+        const metaExists = await exists(MEDIA_META_FILE, { baseDir: BaseDirectory.AppLocalData });
+        if (metaExists) {
+          const metaContent = await readTextFile(MEDIA_META_FILE, { baseDir: BaseDirectory.AppLocalData });
+          const meta = JSON.parse(metaContent);
+          localUpdatedAt = meta.lastMediaUpdatedAt || null;
+        } else {
+          isFirstBoot = true;
+        }
+      } catch (e) {
+        logInfo('BOOT', 'Failed to read media metadata, treating as first boot', {
+          error: e instanceof Error ? e.message : String(e),
+        });
+        isFirstBoot = true;
+      }
+
+      if (!isFirstBoot) {
+        try {
+          const videosDirExists = await exists('videos', { baseDir: BaseDirectory.AppLocalData });
+          if (!videosDirExists) {
+            logInfo('BOOT', 'Media metadata exists but videos directory is missing, treating as first boot');
+            isFirstBoot = true;
+          }
+        } catch {
+          isFirstBoot = true;
+        }
+      }
+
+      logInfo('BOOT', 'Fetching media metadata from GitHub...');
+      let timeoutId: ReturnType<typeof setTimeout>;
+      const timeoutPromise = new Promise<{ updated_at: string | null }>((resolve) => {
+        timeoutId = setTimeout(() => {
+          logInfo('BOOT', 'GitHub API request timed out, proceeding without update check');
+          resolve({ updated_at: null });
+        }, 5000);
+      });
+
+      const assetMetadata = await Promise.race([
+        fetchMediaAssetMetadata('sakaikitahanada').finally(() => clearTimeout(timeoutId!)),
+        timeoutPromise,
+      ]);
+
+      if (!isFirstBoot) {
+        if (!assetMetadata.updated_at) {
+          logInfo('BOOT', 'Could not fetch remote media metadata, assuming up to date');
+          setMediaStatus({ status: 'done', progress: 100, message: 'メディアは最新です' });
+          return;
+        }
+        if (localUpdatedAt) {
+          const remoteDate = new Date(assetMetadata.updated_at).getTime();
+          const localDate = new Date(localUpdatedAt).getTime();
+          if (remoteDate <= localDate) {
+            logInfo('BOOT', 'Media is already up to date, skipping download');
+            setMediaStatus({ status: 'done', progress: 100, message: 'メディアは最新です' });
+            return;
+          }
+        }
+      } else {
+        logInfo('BOOT', 'First boot detected, will download media regardless of API result');
+      }
+
+      const mediaZipUrl = 'https://github.com/s-yoshida-33/Grain-Link/releases/latest/download/sakaikitahanada-media.zip';
+      logInfo('BOOT', `${isFirstBoot ? 'First boot' : 'Found media update'}, downloading from: ${mediaZipUrl}`);
+      setMediaStatus({ status: 'downloading', progress: 0, message: 'メディアデータをダウンロード中…' });
+
+      await syncMediaFromZip(mediaZipUrl);
+
+      const updatedAt = assetMetadata.updated_at || new Date().toISOString();
+      try {
+        await writeTextFile(
+          MEDIA_META_FILE,
+          JSON.stringify({ lastMediaUpdatedAt: updatedAt }),
+          { baseDir: BaseDirectory.AppLocalData },
+        );
+        logInfo('BOOT', `Saved media metadata: ${updatedAt}`);
+      } catch {
+        // non-critical
+      }
+
+      setMediaStatus({ status: 'done', progress: 100, message: 'メディアの同期が完了しました' });
+    } catch (error) {
+      logError('BOOT', 'Failed to check media updates', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      setMediaStatus({ status: 'error', progress: 0, message: 'メディアの更新に失敗しました' });
+    }
+  }, [syncMediaFromZip]);
+
+  // Forward download progress from useMediaDownload into mediaStatus
+  useEffect(() => {
+    if (downloadStatus.status === 'downloading' || downloadStatus.status === 'extracting') {
+      setMediaStatus({
+        status: 'downloading',
+        progress: downloadStatus.progress,
+        message: downloadStatus.message,
+      });
+    }
+  }, [downloadStatus.status, downloadStatus.progress, downloadStatus.message]);
+
+  // Auto-run when settings are loaded
+  useEffect(() => {
+    if (settings && !startedRef.current) {
+      startedRef.current = true;
+      runMediaCheck();
+    }
+  }, [settings, runMediaCheck]);
+
+  return { mediaStatus };
+};

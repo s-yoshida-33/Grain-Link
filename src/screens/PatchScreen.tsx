@@ -1,15 +1,113 @@
+// src/screens/PatchScreen.tsx
+// Startup screen: app update check → media download → main app launch
 import { useEffect, useState } from 'react';
-import appIcon from '../assets/icon.svg';
+import appIcon from '../../build/icon.ico';
+import { useAutoUpdate } from '../hooks/useAutoUpdate';
+import { useMediaSync } from '../hooks/useMediaSync';
+import { getVersion } from '@tauri-apps/api/app';
 
-const RELEASE_URL = 'https://github.com/s-yoshida-33/Grain-Link/releases/latest';
+interface PatchScreenProps {
+  onComplete: () => void;
+}
 
-export function PatchScreen() {
+export function PatchScreen({ onComplete }: PatchScreenProps) {
+  const { updateStatus, installUpdate } = useAutoUpdate();
+  const { mediaStatus } = useMediaSync();
   const [appVersion, setAppVersion] = useState<string>('');
 
   useEffect(() => {
-    // フェーズ1: 自動アップデートは停止。手動更新案内のみ。
-    setAppVersion('');
+    getVersion()
+      .then((v) => setAppVersion(v))
+      .catch(() => setAppVersion(''));
   }, []);
+
+  // When update is ready, auto-relaunch after 5 seconds
+  useEffect(() => {
+    if (updateStatus.status === 'ready') {
+      const timer = setTimeout(() => {
+        installUpdate();
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [updateStatus.status, installUpdate]);
+
+  // When app update and media download are both done, proceed immediately
+  useEffect(() => {
+    const appDone = updateStatus.status === 'uptodate' || updateStatus.status === 'error';
+    const mediaDone = mediaStatus.status === 'done' || mediaStatus.status === 'error';
+
+    if (appDone && mediaDone) {
+      onComplete();
+    }
+  }, [updateStatus.status, mediaStatus.status, onComplete]);
+
+  // Current phase for display
+  type Phase = 'app_update' | 'media_download';
+  const currentPhase: Phase = (() => {
+    const appDone = updateStatus.status === 'uptodate' || updateStatus.status === 'error';
+    if (!appDone) return 'app_update';
+    return 'media_download';
+  })();
+
+  // Title label
+  const titleLabel = (() => {
+    if (updateStatus.status === 'ready') {
+      return 'アップデートが完了しました';
+    }
+    switch (currentPhase) {
+      case 'app_update':
+        switch (updateStatus.status) {
+          case 'idle':
+          case 'checking':
+            return 'アップデートを確認中…';
+          case 'available':
+          case 'downloading':
+            return 'アップデートをダウンロードしています';
+          case 'error':
+            return 'アップデートエラー';
+          default:
+            return 'アップデート状態';
+        }
+      case 'media_download':
+        switch (mediaStatus.status) {
+          case 'idle':
+          case 'checking':
+            return 'メディアデータを確認中…';
+          case 'downloading':
+            return 'メディアデータをダウンロード中…';
+          case 'error':
+            return 'メディアダウンロードエラー';
+          default:
+            return 'メディアデータの確認';
+        }
+      default:
+        return 'アップデート状態';
+    }
+  })();
+
+  // Status message
+  const statusMessage = (() => {
+    if (updateStatus.status === 'ready') {
+      return updateStatus.message;
+    }
+    if (currentPhase === 'app_update') {
+      return updateStatus.message || '起動しています…';
+    }
+    return mediaStatus.message || 'メディアデータを確認中…';
+  })();
+
+  // Display progress
+  const displayPercent = (() => {
+    if (updateStatus.status === 'ready') return 100;
+    if (currentPhase === 'app_update') return updateStatus.progress;
+    return mediaStatus.progress;
+  })();
+
+  // Display state label
+  const displayState = (() => {
+    if (currentPhase === 'app_update') return updateStatus.status.toUpperCase();
+    return mediaStatus.status.toUpperCase();
+  })();
 
   return (
     <div
@@ -17,19 +115,19 @@ export function PatchScreen() {
         display: 'flex',
         width: '100vw',
         height: '100vh',
-        fontFamily: 'system-ui, sans-serif',
+        fontFamily: "system-ui, sans-serif",
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: 'transparent',
+        backgroundColor: '#000000',
         color: '#fff',
       }}
     >
+      {/* Center Card */}
       <div
         style={{
-          minWidth: 720,
-          maxWidth: 820,
-          minHeight: 420,
-          maxHeight: 520,
+          width: 860,
+          minHeight: 600,
+          maxHeight: 660,
           padding: 32,
           borderRadius: 8,
           backgroundColor: '#0a0a0a',
@@ -40,6 +138,7 @@ export function PatchScreen() {
           gap: 24,
         }}
       >
+        {/* Header */}
         <div
           style={{
             display: 'flex',
@@ -48,6 +147,7 @@ export function PatchScreen() {
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            {/* ICON */}
             <div
               style={{
                 width: 44,
@@ -67,7 +167,7 @@ export function PatchScreen() {
                 style={{
                   width: '100%',
                   height: '100%',
-                  objectFit: 'contain',
+                  objectFit: 'cover',
                 }}
               />
             </div>
@@ -75,7 +175,7 @@ export function PatchScreen() {
             <div>
               <div style={{ fontSize: 20, fontWeight: 700, color: '#ffffff' }}>Grain Link</div>
               <div style={{ fontSize: 12, color: '#888888' }}>
-                アップデートは現在手動更新のみです。
+                Preparing latest map &amp; shop data…
               </div>
             </div>
           </div>
@@ -85,10 +185,9 @@ export function PatchScreen() {
           </div>
         </div>
 
+        {/* Status Panel */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div style={{ fontSize: 16, fontWeight: 700, color: '#ffffff' }}>
-            手動更新の手順
-          </div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: '#ffffff' }}>{titleLabel}</div>
 
           <p
             style={{
@@ -98,47 +197,77 @@ export function PatchScreen() {
               whiteSpace: 'pre-line',
             }}
           >
-            1. 下のリンクから最新のリリースページを開きます。\n
-            2. インストーラーをダウンロードして実行します。\n
-            3. インストール後、アプリを再起動してください。
+            {statusMessage}
           </p>
         </div>
 
+        {/* Progress Panel */}
         <div
           style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: 12,
             padding: 16,
             borderRadius: 4,
             border: '2px solid #1a1a1a',
             backgroundColor: '#0f0f0f',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 12,
           }}
         >
-          <div style={{ fontSize: 13, color: '#cccccc' }}>
-            最新版を取得するには GitHub Releases を開いてください。
+          <div style={{ fontSize: 12, color: '#888888', marginBottom: 6 }}>
+            {currentPhase === 'app_update' ? 'App Update' : 'Media Download'}
           </div>
-          <a
-            href={RELEASE_URL}
-            target="_blank"
-            rel="noreferrer"
+
+          {/* Progress Bar */}
+          <div
             style={{
-              backgroundColor: '#F08300',
-              color: '#0a0a0a',
-              border: '1px solid #d07000',
-              borderRadius: 4,
-              padding: '10px 16px',
-              fontSize: 13,
-              fontWeight: 700,
-              textDecoration: 'none',
-              boxShadow: '0 4px 12px rgba(240,131,0,0.35)',
+              width: '100%',
+              height: 20,
+              borderRadius: 2,
+              border: '2px solid #1a1a1a',
+              overflow: 'hidden',
+              backgroundColor: '#050505',
+              position: 'relative',
             }}
           >
-            GitHub Releases を開く
-          </a>
+            <div
+              style={{
+                height: '100%',
+                width: `${displayPercent}%`,
+                backgroundColor: '#E74C3C',
+                borderRight: displayPercent < 100 ? '2px solid #C0392B' : 'none',
+                transition: 'width 0.2s linear',
+                boxShadow: displayPercent > 0 ? 'inset 0 0 8px rgba(231,76,60,0.3)' : 'none',
+              }}
+            />
+          </div>
+
+          <div style={{ fontSize: 12, textAlign: 'right', color: '#ffffff', fontWeight: 600 }}>
+            {displayPercent > 0 ? `${displayPercent.toFixed(1)}%` : '待機中…'}
+          </div>
+
+          {/* State Info */}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              rowGap: 8,
+              columnGap: 16,
+              fontSize: 11,
+              paddingTop: 8,
+              borderTop: '1px solid #1a1a1a',
+            }}
+          >
+            <div style={{ color: '#888888' }}>Phase</div>
+            <div style={{ textAlign: 'right', color: '#ffffff', fontWeight: 600, textTransform: 'uppercase' }}>
+              {currentPhase === 'app_update' ? 'APP UPDATE' : 'MEDIA'}
+            </div>
+
+            <div style={{ color: '#888888' }}>State</div>
+            <div style={{ textAlign: 'right', color: '#ffffff', fontWeight: 600, textTransform: 'uppercase' }}>{displayState}</div>
+          </div>
         </div>
 
+        {/* Footer */}
         <div
           style={{
             display: 'flex',
@@ -147,12 +276,14 @@ export function PatchScreen() {
             fontSize: 11,
             color: '#666666',
             marginTop: 'auto',
-            paddingTop: 12,
+            paddingTop: 16,
             borderTop: '1px solid #1a1a1a',
           }}
         >
-          <div>© 2026 Toei Techno International Inc.</div>
-          <div style={{ color: '#888888' }}>Updates are paused (manual only)</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <div>Do not turn off your device while updating.</div>
+            <div>&copy; 2026 Toei Techno International Inc.</div>
+          </div>
         </div>
       </div>
     </div>

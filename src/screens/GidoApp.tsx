@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useAppSettings } from '../hooks/useAppSettings';
 import { VideoSignageView } from './VideoSignageView';
 import { ShopListView } from './ShopListView';
-import { BootScreen } from './BootScreen';
+import { PatchScreen } from './PatchScreen';
 import { sseClient } from '../api/sseClient';
 import { fetchShopsFromApi } from '../api/restClient';
 import { normalizeShops, generateMockShops } from '../utils/shopData';
@@ -110,9 +110,8 @@ export const GidoApp: React.FC = () => {
     return <div className="flex items-center justify-center h-screen">Loading settings...</div>;
   }
 
-  // ブート完了するまで BootScreen を表示
   if (!bootComplete) {
-    return <BootScreen onBootComplete={() => setBootComplete(true)} />;
+    return <PatchScreen onComplete={() => setBootComplete(true)} />;
   }
 
   // 設定に応じて表示モード切り替え
