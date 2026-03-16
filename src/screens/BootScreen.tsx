@@ -11,7 +11,7 @@ interface BootScreenProps {
   onBootComplete: () => void;
 }
 
-type BootStage = 'update' | 'media' | 'countdown' | 'complete';
+type BootStage = 'update' | 'media' | 'complete';
 
 const MEDIA_META_FILE = 'media-meta.json';
 
@@ -21,7 +21,6 @@ export const BootScreen: React.FC<BootScreenProps> = ({ onBootComplete }) => {
   const { settings } = useAppSettings();
 
   const [currentStage, setCurrentStage] = useState<BootStage>('update');
-  const [countdownSeconds, setCountdownSeconds] = useState(90);
   const [mediaStarted, setMediaStarted] = useState(false);
 
   // --- Stage 1: Update ---
@@ -108,7 +107,7 @@ export const BootScreen: React.FC<BootScreenProps> = ({ onBootComplete }) => {
       if (!isFirstBoot) {
         if (!assetMetadata.updated_at) {
           logInfo('BOOT', 'Could not fetch remote media metadata, assuming up to date');
-          setCurrentStage('countdown');
+          setCurrentStage('complete');
           return;
         }
 
@@ -119,7 +118,7 @@ export const BootScreen: React.FC<BootScreenProps> = ({ onBootComplete }) => {
           if (remoteDate <= localDate) {
             logInfo('BOOT', 'Media is already up to date, skipping download');
             logInfo('BOOT', `Remote: ${assetMetadata.updated_at}, Local: ${localUpdatedAt}`);
-            setCurrentStage('countdown');
+            setCurrentStage('complete');
             return;
           }
         }
@@ -149,7 +148,7 @@ export const BootScreen: React.FC<BootScreenProps> = ({ onBootComplete }) => {
         error: error instanceof Error ? error.message : String(error)
       });
       logInfo('BOOT', 'Proceeding with startup despite media check failure');
-      setCurrentStage('countdown');
+      setCurrentStage('complete');
     }
   }, [syncMediaFromZip]);
 
@@ -165,27 +164,11 @@ export const BootScreen: React.FC<BootScreenProps> = ({ onBootComplete }) => {
     if (currentStage !== 'media' || !mediaStarted) return;
     if (downloadStatus.status === 'completed' || downloadStatus.status === 'error') {
       logInfo('BOOT', 'Media sync stage finished');
-      setTimeout(() => setCurrentStage('countdown'), 1000);
+      setTimeout(() => setCurrentStage('complete'), 1000);
     }
   }, [downloadStatus.status, currentStage, mediaStarted]);
 
-  // --- Stage 3: Countdown ---
-  useEffect(() => {
-    if (currentStage !== 'countdown') return;
-    const timer = setInterval(() => {
-      setCountdownSeconds((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          setCurrentStage('complete');
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [currentStage]);
-
-  // --- Stage 4: Complete ---
+  // --- Stage 3: Complete ---
   useEffect(() => {
     if (currentStage === 'complete') {
       setTimeout(() => onBootComplete(), 500);
@@ -194,8 +177,7 @@ export const BootScreen: React.FC<BootScreenProps> = ({ onBootComplete }) => {
 
   // --- Handlers ---
   const handleSkipUpdate = () => setCurrentStage('media');
-  const handleSkipMedia = () => setCurrentStage('countdown');
-  const handleSkipCountdown = () => setCurrentStage('complete');
+  const handleSkipMedia = () => setCurrentStage('complete');
 
   const getMediaDialogStatus = () => {
     if (downloadStatus.status === 'extracting') return 'downloading';
@@ -234,7 +216,7 @@ export const BootScreen: React.FC<BootScreenProps> = ({ onBootComplete }) => {
     );
   }
 
-  // Phase 3: カウントダウン画面
+  // メディア確認中の画面
   return (
     <div className="fixed inset-0 bg-linear-to-b from-gray-900 to-black flex items-center justify-center z-50">
       <div className="w-full h-full flex flex-col items-center justify-center gap-8">
@@ -244,21 +226,6 @@ export const BootScreen: React.FC<BootScreenProps> = ({ onBootComplete }) => {
             <p className="text-gray-400">メディアを確認中...</p>
           )}
         </div>
-
-        {currentStage === 'countdown' && (
-          <div className="w-96">
-            <div className="text-center py-6 bg-gray-800 rounded">
-              <div className="text-5xl font-bold text-white mb-2">{countdownSeconds}</div>
-              <p className="text-gray-400 text-sm">Seconds remaining</p>
-              <button
-                onClick={handleSkipCountdown}
-                className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
-              >
-                Start Now
-              </button>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
