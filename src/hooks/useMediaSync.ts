@@ -29,6 +29,12 @@ export const useMediaSync = () => {
 
   const runMediaCheck = useCallback(async () => {
     try {
+      if (settings?.appMode === 'SHOP_LIST') {
+        logInfo('BOOT', 'App mode is SHOP_LIST, skipping media download');
+        setMediaStatus({ status: 'done', progress: 100, message: 'SHOP_LISTモードのためメディア同期をスキップ' });
+        return;
+      }
+
       setMediaStatus({ status: 'checking', progress: 0, message: 'メディアデータを確認中…' });
       logInfo('BOOT', 'Checking for media updates via GitHub Release API...');
 
@@ -121,7 +127,7 @@ export const useMediaSync = () => {
       });
       setMediaStatus({ status: 'error', progress: 0, message: 'メディアの更新に失敗しました' });
     }
-  }, [syncMediaFromZip]);
+  }, [syncMediaFromZip, settings?.appMode]);
 
   // Forward download progress from useMediaDownload into mediaStatus
   useEffect(() => {
