@@ -22,6 +22,7 @@
     "tauri:build": "tauri build",
     "tauri:build:signed": "node ./build/runner.js sign-and-build.ps1",
     "tauri:release": "npm run tauri:build:signed && node ./build/runner.js manage-release.ps1",
+    "optimize:media": "node ./build/runner.js optimize-media.ps1",
     "media:compress": "powershell -ExecutionPolicy Bypass -File ./build/compress-media.ps1 -MallId sakaikitahanada",
     "desktop:dev": "tauri dev",
     "desktop:build": "tauri build",

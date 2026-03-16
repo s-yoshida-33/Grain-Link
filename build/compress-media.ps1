@@ -14,14 +14,20 @@ $ErrorActionPreference = "Stop"
 Write-Host "Compressing media for mall: $MallId" -ForegroundColor Cyan
 
 # Source and destination paths
-$sourceDir = Join-Path $PSScriptRoot "..\tmp\$MallId\assets\videos"
+$sourceDir = Join-Path $PSScriptRoot "..\tmp\$MallId\assets\videos\optimized"
+$fallbackDir = Join-Path $PSScriptRoot "..\tmp\$MallId\assets\videos"
 $outputDir = Join-Path $PSScriptRoot "..\release"
 $zipFileName = "$MallId-media.zip"
 $zipPath = Join-Path $outputDir $zipFileName
 
-# Verify source directory exists
-if (-not (Test-Path $sourceDir)) {
-    Write-Host "Error: Source directory not found: $sourceDir" -ForegroundColor Red
+# Use optimized/ if it exists and has files, otherwise fall back to raw videos
+if ((Test-Path $sourceDir) -and (Get-ChildItem -Path $sourceDir -File -ErrorAction SilentlyContinue | Where-Object { $_.Extension -match '\.(mp4|webm|mov)$' }).Count -gt 0) {
+    Write-Host "Using optimized videos from: $sourceDir" -ForegroundColor Green
+} elseif (Test-Path $fallbackDir) {
+    Write-Host "Optimized directory not found or empty, falling back to: $fallbackDir" -ForegroundColor Yellow
+    $sourceDir = $fallbackDir
+} else {
+    Write-Host "Error: Source directory not found: $fallbackDir" -ForegroundColor Red
     exit 1
 }
 
