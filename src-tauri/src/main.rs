@@ -14,6 +14,7 @@ use tauri::tray::TrayIconBuilder;
 use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
 use std::sync::{Mutex, OnceLock};
 use std::collections::HashMap;
+use sysinfo::System;
 
 // ── Statics for tray / watchdog ──────────────────────────────────
 
@@ -67,6 +68,98 @@ fn get_log_file_path() -> Result<std::path::PathBuf, String> {
     let log_dir = get_log_dir()?;
     let today = Local::now().format("%Y-%m-%d").to_string();
     Ok(log_dir.join(format!("grain-link-{}.log", today)))
+}
+
+// ── System info (CPU, memory, GPU, OS) ───────────────────────────
+
+static GPU_NAME_CACHE: OnceLock<String> = OnceLock::new();
+
+fn get_gpu_name_cached() -> String {
+    GPU_NAME_CACHE.get_or_init(|| get_gpu_name()).clone()
+}
+
+fn get_gpu_name() -> String {
+    #[cfg(target_os = "windows")]
+    {
+        use std::process::Command;
+        let (tx, rx) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            let result = Command::new("wmic")
+                .args(["path", "win32_VideoController", "get", "name"])
+                .output();
+            let _ = tx.send(result);
+        });
+        match rx.recv_timeout(std::time::Duration::from_secs(10)) {
+            Ok(Ok(out)) if out.status.success() => {
+                let text = String::from_utf8_lossy(&out.stdout);
+                let name = text.lines()
+                    .skip(1)
+                    .find(|l| !l.trim().is_empty())
+                    .map(|l| l.trim().to_string())
+                    .unwrap_or_default();
+                if !name.is_empty() {
+                    return name;
+                }
+            }
+            Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
+                eprintln!("[SYSTEM_INFO] wmic timed out after 10s");
+            }
+            _ => {}
+        }
+    }
+    "Unknown".to_string()
+}
+
+#[derive(Serialize)]
+struct SystemInfoResponse {
+    cpu_name: String,
+    cpu_cores: usize,
+    cpu_usage: f32,
+    memory_total_mb: u64,
+    memory_used_mb: u64,
+    memory_usage_percent: f64,
+    gpu_name: String,
+    os_name: String,
+    os_version: String,
+}
+
+#[tauri::command]
+fn get_system_info() -> SystemInfoResponse {
+    let mut sys = System::new_all();
+    sys.refresh_cpu_all();
+    std::thread::sleep(std::time::Duration::from_millis(200));
+    sys.refresh_cpu_usage();
+    sys.refresh_memory();
+
+    let cpu_name = sys.cpus().first()
+        .map(|c| c.brand().to_string())
+        .unwrap_or_else(|| "Unknown".to_string());
+    let cpu_cores = sys.cpus().len();
+    let cpu_usage = sys.global_cpu_usage();
+
+    let memory_total_mb = sys.total_memory() / (1024 * 1024);
+    let memory_used_mb = sys.used_memory() / (1024 * 1024);
+    let memory_usage_percent = if sys.total_memory() > 0 {
+        (sys.used_memory() as f64 / sys.total_memory() as f64) * 100.0
+    } else {
+        0.0
+    };
+
+    let gpu_name = get_gpu_name_cached();
+    let os_name = System::name().unwrap_or_else(|| "Unknown".to_string());
+    let os_version = System::os_version().unwrap_or_else(|| "Unknown".to_string());
+
+    SystemInfoResponse {
+        cpu_name,
+        cpu_cores,
+        cpu_usage,
+        memory_total_mb,
+        memory_used_mb,
+        memory_usage_percent,
+        gpu_name,
+        os_name,
+        os_version,
+    }
 }
 
 // ── Slack alert notification ─────────────────────────────────────
@@ -589,6 +682,7 @@ fn main() {
             download_media,
             sync_media_from_zip,
             write_log,
+            get_system_info,
             webview_ping,
             quit_app,
             pause_watchdog,
