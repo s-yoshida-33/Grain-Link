@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { exit } from '@tauri-apps/plugin-process';
+import { invoke } from '@tauri-apps/api/core';
 import { loadSettings, saveSettings } from '../utils/settings';
 import type { AppMode, SleepSettings } from '../types/settings';
 
@@ -61,7 +61,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ children }) => {
   }, [hideMenu]);
 
   const quitApp = useCallback(async () => {
-    await exit(0);
+    await invoke('quit_app');
   }, []);
 
   const openReleases = useCallback(() => {

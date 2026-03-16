@@ -8,6 +8,20 @@ use chrono::Local;
 use std::io::Cursor;
 use zip::ZipArchive;
 use tauri::Emitter;
+use tauri::{Manager, RunEvent, WindowEvent};
+use tauri::menu::{Menu, MenuItem};
+use tauri::tray::TrayIconBuilder;
+use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
+use std::sync::OnceLock;
+
+// ── Statics for tray / watchdog ──────────────────────────────────
+
+static FORCE_QUIT: AtomicBool = AtomicBool::new(false);
+static LAST_PING: OnceLock<AtomicI64> = OnceLock::new();
+static WATCHDOG_PAUSED: AtomicBool = AtomicBool::new(false);
+static WATCHDOG_COUNTER_RESET: AtomicBool = AtomicBool::new(false);
+
+const MAX_WATCHDOG_RESTARTS: i32 = 5;
 
 #[derive(Serialize, Deserialize)]
 struct FetchResponse {
@@ -276,7 +290,188 @@ async fn sync_media_from_zip(app: tauri::AppHandle, url: String) -> Result<Downl
     })
 }
 
+// ── Watchdog ping from frontend ──────────────────────────────────
+
+#[tauri::command]
+fn webview_ping() -> Result<String, String> {
+    let ts = chrono::Utc::now().timestamp();
+    let ping = LAST_PING.get_or_init(|| AtomicI64::new(ts));
+    ping.store(ts, Ordering::Relaxed);
+
+    // First successful ping after (re)start → reset the restart counter
+    if WATCHDOG_COUNTER_RESET.compare_exchange(false, true, Ordering::Relaxed, Ordering::Relaxed).is_ok() {
+        if let Ok(counter_path) = get_watchdog_counter_path() {
+            let _ = fs::write(&counter_path, "0");
+        }
+    }
+
+    Ok("pong".to_string())
+}
+
+#[tauri::command]
+fn quit_app() {
+    FORCE_QUIT.store(true, Ordering::Relaxed);
+    std::process::exit(0);
+}
+
+#[tauri::command]
+fn pause_watchdog() -> Result<String, String> {
+    WATCHDOG_PAUSED.store(true, Ordering::Relaxed);
+    write_log_to_file("INFO", "WATCHDOG", "Watchdog paused (e.g. during app update)");
+    Ok("paused".to_string())
+}
+
+#[tauri::command]
+fn resume_watchdog() -> Result<String, String> {
+    // Reset ping timestamp so the watchdog doesn't fire immediately
+    let ts = chrono::Utc::now().timestamp();
+    if let Some(ping) = LAST_PING.get() {
+        ping.store(ts, Ordering::Relaxed);
+    }
+    WATCHDOG_PAUSED.store(false, Ordering::Relaxed);
+    write_log_to_file("INFO", "WATCHDOG", "Watchdog resumed");
+    Ok("resumed".to_string())
+}
+
+// ── Helpers ──────────────────────────────────────────────────────
+
+fn get_watchdog_counter_path() -> Result<std::path::PathBuf, String> {
+    let dir = dirs::data_local_dir()
+        .ok_or("Failed to get local data directory")?
+        .join("com.tti.grain-link");
+    fs::create_dir_all(&dir).map_err(|e| format!("Failed to create dir: {}", e))?;
+    Ok(dir.join("watchdog_restart_count"))
+}
+
+fn write_log_to_file(level: &str, tag: &str, message: &str) {
+    let timestamp = Local::now().format("%Y-%m-%d %H:%M:%S%.3f").to_string();
+    let entry = format!("[{}] [{}] [{}] {}\n", timestamp, level, tag, message);
+
+    if let Ok(path) = get_log_file_path() {
+        if let Ok(mut f) = OpenOptions::new().create(true).append(true).open(&path) {
+            let _ = f.write_all(entry.as_bytes());
+        }
+    }
+}
+
+// ── System tray ──────────────────────────────────────────────────
+
+fn setup_system_tray(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
+    let show_item = MenuItem::with_id(app, "show", "表示", true, None::<&str>)?;
+    let quit_item = MenuItem::with_id(app, "quit", "終了", true, None::<&str>)?;
+    let menu = Menu::with_items(app, &[&show_item, &quit_item])?;
+
+    TrayIconBuilder::new()
+        .icon(app.default_window_icon().cloned().unwrap())
+        .tooltip(app.config().product_name.as_deref().unwrap_or("Grain Link"))
+        .menu(&menu)
+        .on_menu_event(|app, event| {
+            match event.id().as_ref() {
+                "show" => {
+                    if let Some(window) = app.get_webview_window("main") {
+                        let _ = window.show();
+                        let _ = window.set_focus();
+                    }
+                }
+                "quit" => {
+                    FORCE_QUIT.store(true, Ordering::Relaxed);
+                    app.exit(0);
+                }
+                _ => {}
+            }
+        })
+        .build(app)?;
+
+    Ok(())
+}
+
+// ── Watchdog thread ──────────────────────────────────────────────
+
+fn start_webview_watchdog(app_handle: tauri::AppHandle) {
+    let ts = chrono::Utc::now().timestamp();
+    LAST_PING.get_or_init(|| AtomicI64::new(ts));
+
+    std::thread::spawn(move || {
+        // Wait for frontend to boot up before monitoring
+        std::thread::sleep(std::time::Duration::from_secs(30));
+
+        write_log_to_file("INFO", "WATCHDOG", "Watchdog thread started");
+
+        loop {
+            std::thread::sleep(std::time::Duration::from_secs(15));
+
+            if FORCE_QUIT.load(Ordering::Relaxed) {
+                break;
+            }
+            if WATCHDOG_PAUSED.load(Ordering::Relaxed) {
+                continue;
+            }
+
+            let now = chrono::Utc::now().timestamp();
+            let last = LAST_PING.get().map(|p| p.load(Ordering::Relaxed)).unwrap_or(now);
+            let elapsed = now - last;
+
+            if elapsed > 60 {
+                write_log_to_file(
+                    "ERROR",
+                    "WATCHDOG",
+                    &format!("No ping from WebView for {}s — attempting restart", elapsed),
+                );
+
+                // Read & increment restart counter
+                let counter_path = match get_watchdog_counter_path() {
+                    Ok(p) => p,
+                    Err(_) => {
+                        app_handle.restart();
+                    }
+                };
+
+                let count: i32 = fs::read_to_string(&counter_path)
+                    .ok()
+                    .and_then(|s| s.trim().parse().ok())
+                    .unwrap_or(0);
+
+                if count >= MAX_WATCHDOG_RESTARTS {
+                    write_log_to_file(
+                        "ERROR",
+                        "WATCHDOG",
+                        &format!(
+                            "Max watchdog restarts ({}) reached — stopping restart loop",
+                            MAX_WATCHDOG_RESTARTS
+                        ),
+                    );
+                    break;
+                }
+
+                let _ = fs::write(&counter_path, (count + 1).to_string());
+                write_log_to_file(
+                    "WARN",
+                    "WATCHDOG",
+                    &format!("Restarting app (attempt {}/{})", count + 1, MAX_WATCHDOG_RESTARTS),
+                );
+
+                app_handle.restart();
+            }
+        }
+    });
+}
+
+// ── Panic hook ───────────────────────────────────────────────────
+
+fn install_panic_hook() {
+    let default_hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        let message = format!("PANIC: {}", info);
+        write_log_to_file("ERROR", "PANIC", &message);
+        default_hook(info);
+    }));
+}
+
+// ── main ─────────────────────────────────────────────────────────
+
 fn main() {
+    install_panic_hook();
+
     let builder = tauri::Builder::default()
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_process::init())
@@ -289,12 +484,34 @@ fn main() {
             read_video_file,
             download_media,
             sync_media_from_zip,
-            write_log
-        ]);
+            write_log,
+            webview_ping,
+            quit_app,
+            pause_watchdog,
+            resume_watchdog
+        ])
+        .setup(|app| {
+            setup_system_tray(app)?;
+            start_webview_watchdog(app.handle().clone());
+            write_log_to_file("INFO", "SYS_INIT", "Application started with tray and watchdog");
+            Ok(())
+        })
+        .on_window_event(|_window, event| {
+            // Prevent window close — kiosk mode. Only tray "終了" or quit_app can exit.
+            if let WindowEvent::CloseRequested { api, .. } = event {
+                api.prevent_close();
+            }
+        });
 
     let app = builder
         .build(tauri::generate_context!())
         .expect("error while building tauri application");
 
-    app.run(|_app_handle, _event| {});
+    app.run(|_app_handle, event| {
+        if let RunEvent::ExitRequested { api, .. } = &event {
+            if !FORCE_QUIT.load(Ordering::Relaxed) {
+                api.prevent_exit();
+            }
+        }
+    });
 }
