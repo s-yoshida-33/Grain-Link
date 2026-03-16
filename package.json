@@ -6,7 +6,7 @@
   "description": "Grain Link Application",
   "author": "Toei Techno International Inc.",
   "license": "UNLICENSED",
-  "copyright": "\u00a9 2026 Toei Techno International Inc.",
+  "copyright": "© 2026 Toei Techno International Inc.",
   "repository": {
     "type": "git",
     "url": "https://github.com/s-yoshida-33/Grain-Link.git"
@@ -42,6 +42,7 @@
     "@tailwindcss/vite": "^4.1.17",
     "@tauri-apps/api": "^2.10.1",
     "@tauri-apps/cli": "^2.10.0",
+    "@types/node": "^25.5.0",
     "@types/react": "^19.2.2",
     "@types/react-dom": "^19.2.2",
     "@vitejs/plugin-react": "^5.1.0",
