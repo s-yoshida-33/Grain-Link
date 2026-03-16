@@ -12,7 +12,8 @@ use tauri::{Manager, RunEvent, WindowEvent};
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::TrayIconBuilder;
 use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
-use std::sync::OnceLock;
+use std::sync::{Mutex, OnceLock};
+use std::collections::HashMap;
 
 // ── Statics for tray / watchdog ──────────────────────────────────
 
@@ -22,6 +23,13 @@ static WATCHDOG_PAUSED: AtomicBool = AtomicBool::new(false);
 static WATCHDOG_COUNTER_RESET: AtomicBool = AtomicBool::new(false);
 
 const MAX_WATCHDOG_RESTARTS: i32 = 5;
+
+// ── App state (Slack alert dedup) ────────────────────────────────
+
+#[derive(Default)]
+struct AppState {
+    last_alert_state: Mutex<HashMap<String, String>>,
+}
 
 #[derive(Serialize, Deserialize)]
 struct FetchResponse {
@@ -61,23 +69,111 @@ fn get_log_file_path() -> Result<std::path::PathBuf, String> {
     Ok(log_dir.join(format!("grain-link-{}.log", today)))
 }
 
+// ── Slack alert notification ─────────────────────────────────────
+
+fn get_mall_id_from_settings() -> String {
+    let settings_path = match dirs::data_local_dir() {
+        Some(d) => d.join("com.tti.grain-link").join("settings.json"),
+        None => return "unknown".to_string(),
+    };
+    match fs::read_to_string(&settings_path) {
+        Ok(content) => {
+            serde_json::from_str::<serde_json::Value>(&content)
+                .ok()
+                .and_then(|v| v.get("mallId").and_then(|m| m.as_str().map(String::from)))
+                .unwrap_or_else(|| "unknown".to_string())
+        }
+        Err(_) => "unknown".to_string(),
+    }
+}
+
+fn send_slack_notification(level: &str, tag: &str, message: &str, is_recovery: bool, context_str: &str) {
+    let webhook_url = match std::env::var("SLACK_WEBHOOK_URL") {
+        Ok(url) if !url.is_empty() => url,
+        _ => return,
+    };
+
+    let title = if is_recovery {
+        format!("RECOVERY: {}", tag)
+    } else {
+        format!("ALERT: {}", tag)
+    };
+
+    let app_version = env!("CARGO_PKG_VERSION");
+    let hostname = hostname::get()
+        .map(|h| h.to_string_lossy().to_string())
+        .unwrap_or_else(|_| "unknown".to_string());
+    let mall_id = get_mall_id_from_settings();
+
+    let ctx_line = if context_str.is_empty() {
+        String::new()
+    } else {
+        format!("\n*Context*: {}", context_str)
+    };
+
+    let payload = serde_json::json!({
+        "text": format!(
+            "*{title}*\n*Level*: {level}\n*Scope*: {tag}\n*App*: Grain Link\n*Version*: {app_version}\n*Mall*: {mall_id}\n*Host*: {hostname}\n*Message*: {message}{ctx_line}"
+        )
+    });
+
+    std::thread::spawn(move || {
+        let client = reqwest::blocking::Client::new();
+        let _ = client.post(&webhook_url).json(&payload).send();
+    });
+}
+
+// ── Logging command with Slack alert integration ─────────────────
+
+const ALERT_SCOPES: &[&str] = &[
+    "LOCAL_VIDEO",
+    "DATA_SYNC",
+    "CONFIG",
+    "RENDERER_ERROR",
+    "UPDATER",
+    "MEDIA_UPDATE",
+    "MEDIA_SYNC",
+    "MEDIA_DOWNLOAD",
+    "BOOT",
+];
+
 #[tauri::command]
 fn write_log(
     level: String,
     tag: String,
     message: String,
     context: Option<String>,
+    state: tauri::State<'_, AppState>,
 ) -> Result<LogResponse, String> {
-    let timestamp = Local::now().format("%Y-%m-%d %H:%M:%S%.3f").to_string();
-    
+    let upper_level = level.to_uppercase();
     let context_str = context.unwrap_or_default();
+
+    // State-transition based alert: ok→alert sends ALERT, alert→ok sends RECOVERY
+    if ALERT_SCOPES.contains(&tag.as_str()) {
+        let is_error = matches!(upper_level.as_str(), "WARN" | "ERROR" | "FATAL");
+
+        if let Ok(mut map) = state.last_alert_state.lock() {
+            let current = map.get(&tag).cloned().unwrap_or_else(|| "ok".to_string());
+
+            if is_error && current == "ok" {
+                map.insert(tag.clone(), "alert".to_string());
+                send_slack_notification(&upper_level, &tag, &message, false, &context_str);
+            } else if upper_level == "INFO" && current == "alert" {
+                map.insert(tag.clone(), "ok".to_string());
+                send_slack_notification(&upper_level, &tag, &message, true, &context_str);
+            } else if is_error {
+                map.insert(tag.clone(), "alert".to_string());
+            }
+        }
+    }
+
+    let timestamp = Local::now().format("%Y-%m-%d %H:%M:%S%.3f").to_string();
     let log_entry = if context_str.is_empty() {
-        format!("[{}] [{}] [{}] {}\n", timestamp, level, tag, message)
+        format!("[{}] [{}] [{}] {}\n", timestamp, upper_level, tag, message)
     } else {
-        format!("[{}] [{}] [{}] {} | {}\n", timestamp, level, tag, message, context_str)
+        format!("[{}] [{}] [{}] {} | {}\n", timestamp, upper_level, tag, message, context_str)
     };
 
-    // Append to log file
     let log_file_path = get_log_file_path()?;
     let mut file = OpenOptions::new()
         .create(true)
@@ -412,16 +508,13 @@ fn start_webview_watchdog(app_handle: tauri::AppHandle) {
             let elapsed = now - last;
 
             if elapsed > 60 {
-                write_log_to_file(
-                    "ERROR",
-                    "WATCHDOG",
-                    &format!("No ping from WebView for {}s — attempting restart", elapsed),
-                );
+                let msg = format!("No ping from WebView for {}s — attempting restart", elapsed);
+                write_log_to_file("ERROR", "WATCHDOG", &msg);
 
-                // Read & increment restart counter
                 let counter_path = match get_watchdog_counter_path() {
                     Ok(p) => p,
                     Err(_) => {
+                        send_slack_notification("FATAL", "WATCHDOG", &msg, false, "");
                         app_handle.restart();
                     }
                 };
@@ -432,23 +525,19 @@ fn start_webview_watchdog(app_handle: tauri::AppHandle) {
                     .unwrap_or(0);
 
                 if count >= MAX_WATCHDOG_RESTARTS {
-                    write_log_to_file(
-                        "ERROR",
-                        "WATCHDOG",
-                        &format!(
-                            "Max watchdog restarts ({}) reached — stopping restart loop",
-                            MAX_WATCHDOG_RESTARTS
-                        ),
+                    let max_msg = format!(
+                        "Max watchdog restarts ({}) reached — stopping restart loop",
+                        MAX_WATCHDOG_RESTARTS
                     );
+                    write_log_to_file("FATAL", "WATCHDOG", &max_msg);
+                    send_slack_notification("FATAL", "WATCHDOG", &max_msg, false, "");
                     break;
                 }
 
                 let _ = fs::write(&counter_path, (count + 1).to_string());
-                write_log_to_file(
-                    "WARN",
-                    "WATCHDOG",
-                    &format!("Restarting app (attempt {}/{})", count + 1, MAX_WATCHDOG_RESTARTS),
-                );
+                let restart_msg = format!("Restarting app (attempt {}/{})", count + 1, MAX_WATCHDOG_RESTARTS);
+                write_log_to_file("WARN", "WATCHDOG", &restart_msg);
+                send_slack_notification("FATAL", "WATCHDOG", &restart_msg, false, "");
 
                 app_handle.restart();
             }
@@ -461,8 +550,22 @@ fn start_webview_watchdog(app_handle: tauri::AppHandle) {
 fn install_panic_hook() {
     let default_hook = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |info| {
-        let message = format!("PANIC: {}", info);
-        write_log_to_file("ERROR", "PANIC", &message);
+        let location = info
+            .location()
+            .map(|l| format!("{}:{}:{}", l.file(), l.line(), l.column()))
+            .unwrap_or_else(|| "unknown".to_string());
+
+        let payload = if let Some(s) = info.payload().downcast_ref::<&str>() {
+            s.to_string()
+        } else if let Some(s) = info.payload().downcast_ref::<String>() {
+            s.clone()
+        } else {
+            "unknown payload".to_string()
+        };
+
+        let message = format!("PANIC at {}: {}", location, payload);
+        write_log_to_file("FATAL", "PANIC", &message);
+        send_slack_notification("FATAL", "PANIC", &message, false, &location);
         default_hook(info);
     }));
 }
@@ -473,6 +576,7 @@ fn main() {
     install_panic_hook();
 
     let builder = tauri::Builder::default()
+        .manage(AppState::default())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_dialog::init())
