@@ -233,7 +233,7 @@ export function PatchScreen({ onComplete }: PatchScreenProps) {
               style={{
                 height: '100%',
                 width: `${displayPercent}%`,
-                backgroundColor: '#E74C3C',
+                backgroundColor: '#F08300',
                 borderRight: displayPercent < 100 ? '2px solid #C0392B' : 'none',
                 transition: 'width 0.2s linear',
                 boxShadow: displayPercent > 0 ? 'inset 0 0 8px rgba(231,76,60,0.3)' : 'none',
