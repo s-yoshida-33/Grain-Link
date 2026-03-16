@@ -72,10 +72,38 @@ fn get_log_file_path() -> Result<std::path::PathBuf, String> {
 
 // ── System info (CPU, memory, GPU, OS) ───────────────────────────
 
-static GPU_NAME_CACHE: OnceLock<String> = OnceLock::new();
+struct StaticHardwareInfo {
+    cpu_name: String,
+    cpu_cores: usize,
+    memory_total_mb: u64,
+    gpu_name: String,
+    os_name: String,
+    os_version: String,
+}
 
-fn get_gpu_name_cached() -> String {
-    GPU_NAME_CACHE.get_or_init(|| get_gpu_name()).clone()
+static HARDWARE_CACHE: OnceLock<StaticHardwareInfo> = OnceLock::new();
+static SYS_INSTANCE: OnceLock<Mutex<System>> = OnceLock::new();
+
+fn get_hardware_info() -> &'static StaticHardwareInfo {
+    HARDWARE_CACHE.get_or_init(|| {
+        let mut sys = System::new_all();
+        sys.refresh_cpu_all();
+        sys.refresh_memory();
+
+        let info = StaticHardwareInfo {
+            cpu_name: sys.cpus().first()
+                .map(|c| c.brand().to_string())
+                .unwrap_or_else(|| "Unknown".to_string()),
+            cpu_cores: sys.cpus().len(),
+            memory_total_mb: sys.total_memory() / (1024 * 1024),
+            gpu_name: get_gpu_name(),
+            os_name: System::name().unwrap_or_else(|| "Unknown".to_string()),
+            os_version: System::os_version().unwrap_or_else(|| "Unknown".to_string()),
+        };
+
+        SYS_INSTANCE.get_or_init(|| Mutex::new(sys));
+        info
+    })
 }
 
 fn get_gpu_name() -> String {
@@ -125,40 +153,38 @@ struct SystemInfoResponse {
 
 #[tauri::command]
 fn get_system_info() -> SystemInfoResponse {
-    let mut sys = System::new_all();
-    sys.refresh_cpu_all();
-    std::thread::sleep(std::time::Duration::from_millis(200));
-    sys.refresh_cpu_usage();
-    sys.refresh_memory();
+    let hw = get_hardware_info();
 
-    let cpu_name = sys.cpus().first()
-        .map(|c| c.brand().to_string())
-        .unwrap_or_else(|| "Unknown".to_string());
-    let cpu_cores = sys.cpus().len();
-    let cpu_usage = sys.global_cpu_usage();
-
-    let memory_total_mb = sys.total_memory() / (1024 * 1024);
-    let memory_used_mb = sys.used_memory() / (1024 * 1024);
-    let memory_usage_percent = if sys.total_memory() > 0 {
-        (sys.used_memory() as f64 / sys.total_memory() as f64) * 100.0
-    } else {
-        0.0
+    let (cpu_usage, memory_used_mb, memory_usage_percent) = {
+        let sys_lock = SYS_INSTANCE.get_or_init(|| {
+            Mutex::new(System::new_all())
+        });
+        if let Ok(mut sys) = sys_lock.lock() {
+            sys.refresh_cpu_usage();
+            sys.refresh_memory();
+            let cpu = sys.global_cpu_usage();
+            let mem_used = sys.used_memory() / (1024 * 1024);
+            let mem_pct = if sys.total_memory() > 0 {
+                (sys.used_memory() as f64 / sys.total_memory() as f64) * 100.0
+            } else {
+                0.0
+            };
+            (cpu, mem_used, mem_pct)
+        } else {
+            (0.0, 0, 0.0)
+        }
     };
 
-    let gpu_name = get_gpu_name_cached();
-    let os_name = System::name().unwrap_or_else(|| "Unknown".to_string());
-    let os_version = System::os_version().unwrap_or_else(|| "Unknown".to_string());
-
     SystemInfoResponse {
-        cpu_name,
-        cpu_cores,
+        cpu_name: hw.cpu_name.clone(),
+        cpu_cores: hw.cpu_cores,
         cpu_usage,
-        memory_total_mb,
+        memory_total_mb: hw.memory_total_mb,
         memory_used_mb,
         memory_usage_percent,
-        gpu_name,
-        os_name,
-        os_version,
+        gpu_name: hw.gpu_name.clone(),
+        os_name: hw.os_name.clone(),
+        os_version: hw.os_version.clone(),
     }
 }
 
