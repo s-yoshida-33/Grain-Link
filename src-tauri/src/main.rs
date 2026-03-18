@@ -438,7 +438,10 @@ async fn sync_media_from_zip(app: tauri::AppHandle, url: String) -> Result<Downl
         .map_err(|e| format!("Failed to create videos directory: {}", e))?;
 
     // 1. Download ZIP with chunked progress
-    let client = reqwest::Client::new();
+    let client = reqwest::Client::builder()
+        .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+        .build()
+        .map_err(|e| format!("Failed to build HTTP client: {}", e))?;
     let response = client.get(&url).send().await
         .map_err(|e| format!("HTTP request failed: {}", e))?;
 

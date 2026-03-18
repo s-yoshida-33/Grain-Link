@@ -249,6 +249,7 @@ export const useMediaDownload = () => {
         progress: 0,
         message: 'メディアの更新に失敗しました',
       });
+      throw error;
     } finally {
       unlisten();
     }
