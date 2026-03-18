@@ -61,7 +61,7 @@ jobs:
           S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
         run: |
           VERSION="${{ steps.get_version.outputs.version }}"
-          S3_PREFIX="grain-link/releases"
+          S3_PREFIX="public/grain-link/releases"
 
           echo "Uploading release artifacts to s3://${S3_BUCKET}/${S3_PREFIX}/"
 
