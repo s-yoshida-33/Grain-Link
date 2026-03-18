@@ -111,7 +111,12 @@ export const fetchMediaVersionFromS3 = async (mallId: string): Promise<{ zip: st
     const { fetch: tauriFetch } = await import('@tauri-apps/plugin-http');
     const url = `https://dl.tti.ninja/grain-link/medias/videos/${mallId}/version.json?t=${Date.now()}`;
 
-    const response = await tauriFetch(url);
+    const response = await tauriFetch(url, {
+      headers: {
+        'Cache-Control': 'no-cache, no-store',
+        'Pragma': 'no-cache',
+      },
+    });
 
     if (!response.ok) {
       throw new Error(`Failed to fetch version.json: ${response.status}`);
