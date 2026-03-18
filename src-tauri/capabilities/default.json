@@ -19,7 +19,8 @@
       "allow": [
         { "url": "https://api.github.com/**" },
         { "url": "https://github.com/**" },
-        { "url": "https://*.githubusercontent.com/**" }
+        { "url": "https://*.githubusercontent.com/**" },
+        { "url": "https://dl.tti.ninja/**" }
       ]
     }
   ]
