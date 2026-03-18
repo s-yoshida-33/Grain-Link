@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { BaseDirectory, exists, readTextFile, writeTextFile } from '@tauri-apps/plugin-fs';
 import { useMediaDownload } from './useMediaDownload';
 import { useAppSettings } from './useAppSettings';
-import { fetchMediaAssetMetadata } from '../api/restClient';
+import { fetchMediaVersionFromS3 } from '../api/restClient';
 import { logInfo, logError } from '../logs/logging';
 
 export interface MediaSyncStatus {
@@ -36,7 +36,7 @@ export const useMediaSync = () => {
       }
 
       setMediaStatus({ status: 'checking', progress: 0, message: 'メディアデータを確認中…' });
-      logInfo('BOOT', 'Checking for media updates via GitHub Release API...');
+      logInfo('BOOT', 'Checking for media updates via S3...');
 
       let localUpdatedAt: string | null = null;
       let isFirstBoot = false;
@@ -69,28 +69,29 @@ export const useMediaSync = () => {
         }
       }
 
-      logInfo('BOOT', 'Fetching media metadata from GitHub...');
+      const mallId = settings?.mallId ?? 'sakaikitahanada';
+      logInfo('BOOT', `Fetching media version from S3 (mallId: ${mallId})...`);
       let timeoutId: ReturnType<typeof setTimeout>;
-      const timeoutPromise = new Promise<{ updated_at: string | null }>((resolve) => {
+      const timeoutPromise = new Promise<{ zip: string | null; updated_at: string | null }>((resolve) => {
         timeoutId = setTimeout(() => {
-          logInfo('BOOT', 'GitHub API request timed out, proceeding without update check');
-          resolve({ updated_at: null });
+          logInfo('BOOT', 'S3 version.json request timed out, proceeding without update check');
+          resolve({ zip: null, updated_at: null });
         }, 5000);
       });
 
-      const assetMetadata = await Promise.race([
-        fetchMediaAssetMetadata('sakaikitahanada').finally(() => clearTimeout(timeoutId!)),
+      const remoteVersion = await Promise.race([
+        fetchMediaVersionFromS3(mallId).finally(() => clearTimeout(timeoutId!)),
         timeoutPromise,
       ]);
 
       if (!isFirstBoot) {
-        if (!assetMetadata.updated_at) {
-          logInfo('BOOT', 'Could not fetch remote media metadata, assuming up to date');
+        if (!remoteVersion.updated_at) {
+          logInfo('BOOT', 'Could not fetch remote media version, assuming up to date');
           setMediaStatus({ status: 'done', progress: 100, message: 'メディアは最新です' });
           return;
         }
         if (localUpdatedAt) {
-          const remoteDate = new Date(assetMetadata.updated_at).getTime();
+          const remoteDate = new Date(remoteVersion.updated_at).getTime();
           const localDate = new Date(localUpdatedAt).getTime();
           if (remoteDate <= localDate) {
             logInfo('BOOT', 'Media is already up to date, skipping download');
@@ -99,16 +100,22 @@ export const useMediaSync = () => {
           }
         }
       } else {
-        logInfo('BOOT', 'First boot detected, will download media regardless of API result');
+        logInfo('BOOT', 'First boot detected, will download media regardless of version check');
       }
 
-      const mediaZipUrl = 'https://github.com/s-yoshida-33/Grain-Link/releases/latest/download/sakaikitahanada-media.zip';
+      if (!remoteVersion.zip) {
+        logInfo('BOOT', 'No zip filename in version.json, skipping download');
+        setMediaStatus({ status: 'done', progress: 100, message: 'メディアは最新です' });
+        return;
+      }
+
+      const mediaZipUrl = `https://dl.tti.ninja/grain-link/medias/videos/${mallId}/${remoteVersion.zip}`;
       logInfo('BOOT', `${isFirstBoot ? 'First boot' : 'Found media update'}, downloading from: ${mediaZipUrl}`);
       setMediaStatus({ status: 'downloading', progress: 0, message: 'メディアデータをダウンロード中…' });
 
       await syncMediaFromZip(mediaZipUrl);
 
-      const updatedAt = assetMetadata.updated_at || new Date().toISOString();
+      const updatedAt = remoteVersion.updated_at || new Date().toISOString();
       try {
         await writeTextFile(
           MEDIA_META_FILE,
@@ -127,7 +134,7 @@ export const useMediaSync = () => {
       });
       setMediaStatus({ status: 'error', progress: 0, message: 'メディアの更新に失敗しました' });
     }
-  }, [syncMediaFromZip, settings?.appMode]);
+  }, [syncMediaFromZip, settings?.appMode, settings?.mallId]);
 
   // Forward download progress from useMediaDownload into mediaStatus
   useEffect(() => {
