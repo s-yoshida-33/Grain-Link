@@ -100,3 +100,31 @@ Write-Host "`nDone! Upload the following files to S3:" -ForegroundColor Cyan
 Write-Host "  $zipPath" -ForegroundColor White
 Write-Host "  $versionPath" -ForegroundColor White
 Write-Host "  -> https://dl.tti.ninja/grain-link/medias/videos/$MallId/" -ForegroundColor Gray
+
+# Auto-upload via AWS CLI if available
+$s3Base = "s3://dl.tti.ninja/grain-link/medias/videos/$MallId"
+
+if (Get-Command aws -ErrorAction SilentlyContinue) {
+    Write-Host "`nAWS CLI detected. Uploading to S3..." -ForegroundColor Cyan
+
+    try {
+        # Upload ZIP (with cache allowed)
+        aws s3 cp $zipPath "$s3Base/$zipFileName" --content-type "application/zip"
+        Write-Host "Uploaded: $zipFileName" -ForegroundColor Green
+
+        # Upload version.json with no-cache to prevent CDN from serving stale data
+        aws s3 cp $versionPath "$s3Base/version.json" `
+            --content-type "application/json" `
+            --cache-control "no-cache, no-store"
+        Write-Host "Uploaded: version.json (Cache-Control: no-cache)" -ForegroundColor Green
+
+        Write-Host "`nUpload complete!" -ForegroundColor Green
+    } catch {
+        Write-Host "Upload failed: $_" -ForegroundColor Red
+        Write-Host "Please upload manually using the paths above." -ForegroundColor Yellow
+    }
+} else {
+    Write-Host "`n[INFO] AWS CLI not found. Please upload manually." -ForegroundColor Yellow
+    Write-Host "IMPORTANT: Upload version.json with Cache-Control: no-cache, no-store" -ForegroundColor Yellow
+    Write-Host "  aws s3 cp `"$versionPath`" `"$s3Base/version.json`" --cache-control `"no-cache, no-store`"" -ForegroundColor Gray
+}
