@@ -90,10 +90,7 @@ try {
 
 # --- 6. Construct latest.json ---
 $pubDate = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
-$baseUrl = "https://github.com/s-yoshida-33/Grain-Link/releases/download/v${version}"
-
-# Define media file URL here for easier app reference
-$mediaUrl = "${baseUrl}/sakaikitahanada-media.zip"
+$baseUrl = "https://dl.tti.ninja/grain-link/releases"
 
 $jsonObj = @{
     version = $version
@@ -104,10 +101,6 @@ $jsonObj = @{
             signature = $signatureBase64
             url = "${baseUrl}/$($exeFile.Name)"
         }
-    }
-    # Add media URL as a custom field
-    media = @{
-        url = $mediaUrl
     }
 }
 
