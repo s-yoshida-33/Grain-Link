@@ -32,7 +32,7 @@ $today = Get-Date -Format "yyyy-MM-dd-HH-mm-ss"
 $zipFileName = "video-$today.zip"
 $outputDir = Join-Path $PSScriptRoot "..\release\$MallId"
 $zipPath = Join-Path $outputDir $zipFileName
-$versionPath = Join-Path $outputDir "version.json"
+$versionPath = Join-Path $outputDir "latest.json"
 
 # Use optimized/ if it exists and has files, otherwise fall back to raw videos
 if ((Test-Path $sourceDir) -and (Get-ChildItem -Path $sourceDir -File -ErrorAction SilentlyContinue | Where-Object { $_.Extension -match '\.(mp4|webm|mov)$' }).Count -gt 0) {
@@ -93,7 +93,7 @@ $versionJson = @{
 
 [System.IO.File]::WriteAllText($versionPath, $versionJson, [System.Text.Encoding]::UTF8)
 
-Write-Host "Generated version.json: $versionPath" -ForegroundColor Green
+Write-Host "Generated latest.json: $versionPath" -ForegroundColor Green
 Write-Host "  zip        : $zipFileName" -ForegroundColor Gray
 Write-Host "  updated_at : $updatedAt" -ForegroundColor Gray
 
@@ -113,29 +113,24 @@ if (Get-Command aws -ErrorAction SilentlyContinue) {
         aws s3 cp $zipPath "$s3Base/$zipFileName" --content-type "application/zip"
         Write-Host "Uploaded: $zipFileName" -ForegroundColor Green
 
-        # Upload version.json with no-cache to prevent CDN from serving stale data
-        aws s3 cp $versionPath "$s3Base/version.json" `
+        # Upload latest.json with no-cache to prevent CDN from serving stale data
+        aws s3 cp $versionPath "$s3Base/latest.json" `
             --content-type "application/json" `
             --cache-control "no-cache, no-store"
-        Write-Host "Uploaded: version.json (Cache-Control: no-cache)" -ForegroundColor Green
+        Write-Host "Uploaded: latest.json (Cache-Control: no-cache)" -ForegroundColor Green
 
-        # CloudFront Invalidation
-        if ([string]::IsNullOrWhiteSpace($CloudFrontDistributionId)) {
-            $CloudFrontDistributionId = Read-Host "CloudFront Distribution ID を入力してください (必須: version.jsonのキャッシュクリアに必要)"
-            if ([string]::IsNullOrWhiteSpace($CloudFrontDistributionId)) {
-                Write-Host "Warning: CloudFront Distribution IDが未入力です。version.jsonのキャッシュが残るため、アプリが古いZIPを参照し続ける可能性があります。" -ForegroundColor Red
-                Write-Host "手動でinvalidationを実行してください:" -ForegroundColor Yellow
-                Write-Host "  aws cloudfront create-invalidation --distribution-id <ID> --paths `"/public/grain-link/medias/videos/$MallId/version.json`"" -ForegroundColor Gray
-            }
-        }
-        if (-not [string]::IsNullOrWhiteSpace($CloudFrontDistributionId)) {
-            Write-Host "Creating CloudFront invalidation..." -ForegroundColor Cyan
-            $invalidationPath = "/public/grain-link/medias/videos/$MallId/version.json"
-            aws cloudfront create-invalidation `
-                --distribution-id $CloudFrontDistributionId `
-                --paths $invalidationPath | Out-Null
-            Write-Host "CloudFront invalidation created: $invalidationPath" -ForegroundColor Green
-        }
+        # CloudFront Invalidation (コメントアウト中: s3-uploaderユーザーに cloudfront:CreateInvalidation 権限が付与されるまで無効)
+        # latest.json はパスが変わったため既存キャッシュの影響を受けないので、現時点では不要
+        # 権限付与後に有効化する場合は以下のコメントを外す:
+        # $invalidationPath = "/public/grain-link/medias/videos/$MallId/latest.json"
+        # Write-Host "Creating CloudFront invalidation..." -ForegroundColor Cyan
+        # aws cloudfront create-invalidation `
+        #     --distribution-id $CloudFrontDistributionId `
+        #     --paths $invalidationPath
+        # if ($LASTEXITCODE -ne 0) {
+        #     throw "CloudFront invalidation failed (exit code: $LASTEXITCODE)"
+        # }
+        # Write-Host "CloudFront invalidation created: $invalidationPath" -ForegroundColor Green
 
         Write-Host "`nUpload complete!" -ForegroundColor Green
     } catch {
