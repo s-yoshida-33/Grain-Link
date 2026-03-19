@@ -110,6 +110,31 @@ Write-Host "  -> https://dl.tti.ninja/public/grain-link/medias/videos/$MallId/" 
 $s3Base = "s3://tti-distribution/public/grain-link/medias/videos/$MallId"
 
 if (Get-Command aws -ErrorAction SilentlyContinue) {
+    # --- Archive existing S3 ZIPs before uploading new one ---
+    $archiveDir = Join-Path $outputDir "archive"
+    Write-Host "`nChecking for existing S3 ZIPs to archive..." -ForegroundColor Cyan
+
+    if (-not (Test-Path $archiveDir)) {
+        New-Item -ItemType Directory -Path $archiveDir -Force | Out-Null
+    }
+
+    # Download existing ZIPs (excluding latest.json) for local archive
+    aws s3 sync "$s3Base/" $archiveDir --exclude "latest.json" 2>&1 | Out-Null
+
+    $archivedFiles = Get-ChildItem -Path $archiveDir -File -ErrorAction SilentlyContinue
+    if ($archivedFiles.Count -gt 0) {
+        Write-Host "Downloaded $($archivedFiles.Count) existing ZIP(s) to: $archiveDir" -ForegroundColor Green
+        $archivedFiles | ForEach-Object { Write-Host "  - $($_.Name)" -ForegroundColor Gray }
+
+        # Clean up old ZIPs from S3 (keep latest.json)
+        Write-Host "Cleaning up old ZIPs from S3 (keeping latest.json)..." -ForegroundColor Cyan
+        aws s3 rm "$s3Base/" --recursive --exclude "latest.json"
+        Write-Host "S3 cleanup complete." -ForegroundColor Green
+    } else {
+        Write-Host "No existing ZIPs found on S3 (first upload)." -ForegroundColor Gray
+        Remove-Item $archiveDir -Force -Recurse -ErrorAction SilentlyContinue
+    }
+
     Write-Host "`nAWS CLI detected. Uploading to S3..." -ForegroundColor Cyan
 
     try {
