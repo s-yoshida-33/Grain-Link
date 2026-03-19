@@ -39,6 +39,7 @@ export const useMediaSync = () => {
       logInfo('BOOT', 'Checking for media updates via S3...');
 
       let localUpdatedAt: string | null = null;
+      let localZipName: string | null = null;
       let isFirstBoot = false;
 
       try {
@@ -47,6 +48,7 @@ export const useMediaSync = () => {
           const metaContent = await readTextFile(MEDIA_META_FILE, { baseDir: BaseDirectory.AppLocalData });
           const meta = JSON.parse(metaContent);
           localUpdatedAt = meta.lastMediaUpdatedAt || null;
+          localZipName = meta.lastZipName || null;
         } else {
           isFirstBoot = true;
         }
@@ -85,19 +87,33 @@ export const useMediaSync = () => {
       ]);
 
       if (!isFirstBoot) {
-        if (!remoteVersion.updated_at) {
+        if (!remoteVersion.updated_at && !remoteVersion.zip) {
           logInfo('BOOT', 'Could not fetch remote media version, assuming up to date');
           setMediaStatus({ status: 'done', progress: 100, message: 'メディアは最新です' });
           return;
         }
-        if (localUpdatedAt) {
-          const remoteDate = new Date(remoteVersion.updated_at).getTime();
-          const localDate = new Date(localUpdatedAt).getTime();
-          if (remoteDate <= localDate) {
-            logInfo('BOOT', 'Media is already up to date, skipping download');
-            setMediaStatus({ status: 'done', progress: 100, message: 'メディアは最新です' });
-            return;
-          }
+
+        // Primary: ZIP filename comparison (reliable even when CDN caches version.json)
+        const zipNameChanged = localZipName && remoteVersion.zip
+          ? remoteVersion.zip !== localZipName
+          : false;
+
+        // Fallback: updated_at timestamp comparison
+        const timestampNewer = localUpdatedAt && remoteVersion.updated_at
+          ? new Date(remoteVersion.updated_at).getTime() > new Date(localUpdatedAt).getTime()
+          : false;
+
+        if (!zipNameChanged && !timestampNewer) {
+          logInfo('BOOT', 'Media is already up to date, skipping download');
+          setMediaStatus({ status: 'done', progress: 100, message: 'メディアは最新です' });
+          return;
+        }
+
+        if (zipNameChanged) {
+          logInfo('BOOT', `ZIP file changed: ${localZipName} → ${remoteVersion.zip}`);
+        }
+        if (timestampNewer) {
+          logInfo('BOOT', `Media timestamp updated: ${localUpdatedAt} → ${remoteVersion.updated_at}`);
         }
       } else {
         logInfo('BOOT', 'First boot detected, will download media regardless of version check');
@@ -119,7 +135,7 @@ export const useMediaSync = () => {
       try {
         await writeTextFile(
           MEDIA_META_FILE,
-          JSON.stringify({ lastMediaUpdatedAt: updatedAt }),
+          JSON.stringify({ lastMediaUpdatedAt: updatedAt, lastZipName: remoteVersion.zip || null }),
           { baseDir: BaseDirectory.AppLocalData },
         );
         logInfo('BOOT', `Saved media metadata: ${updatedAt}`);
