@@ -1,4 +1,4 @@
-﻿# Media compression script
+# Media compression script
 # Usage: powershell -ExecutionPolicy Bypass -File .\build\compress-media.ps1 -MallId "sakaikitahanada" -CloudFrontDistributionId "EXXXXXXXXXX"
 
 param(
