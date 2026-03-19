@@ -28,7 +28,7 @@ $sourceDir = Join-Path $PSScriptRoot "..\tmp\$MallId\assets\videos\optimized"
 $fallbackDir = Join-Path $PSScriptRoot "..\tmp\$MallId\assets\videos"
 
 # Output paths: release/{mallId}/video-{yyyy-MM-dd}.zip
-$today = Get-Date -Format "yyyy-MM-dd"
+$today = Get-Date -Format "yyyy-MM-dd-HH-mm-ss"
 $zipFileName = "video-$today.zip"
 $outputDir = Join-Path $PSScriptRoot "..\release\$MallId"
 $zipPath = Join-Path $outputDir $zipFileName
