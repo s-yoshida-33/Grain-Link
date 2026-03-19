@@ -76,7 +76,7 @@ export const useMediaSync = () => {
       let timeoutId: ReturnType<typeof setTimeout>;
       const timeoutPromise = new Promise<{ zip: string | null; updated_at: string | null }>((resolve) => {
         timeoutId = setTimeout(() => {
-          logInfo('BOOT', 'S3 version.json request timed out, proceeding without update check');
+          logInfo('BOOT', 'S3 latest.json request timed out, proceeding without update check');
           resolve({ zip: null, updated_at: null });
         }, 5000);
       });
@@ -93,7 +93,7 @@ export const useMediaSync = () => {
           return;
         }
 
-        // Primary: ZIP filename comparison (reliable even when CDN caches version.json)
+        // Primary: ZIP filename comparison (reliable even when CDN caches latest.json)
         // If localZipName is null (old metadata format without zip tracking), treat as unknown → download
         const zipNameChanged = remoteVersion.zip != null && (
           localZipName == null || remoteVersion.zip !== localZipName
@@ -121,7 +121,7 @@ export const useMediaSync = () => {
       }
 
       if (!remoteVersion.zip) {
-        logInfo('BOOT', 'No zip filename in version.json, skipping download');
+        logInfo('BOOT', 'No zip filename in latest.json, skipping download');
         setMediaStatus({ status: 'done', progress: 100, message: 'メディアは最新です' });
         return;
       }
