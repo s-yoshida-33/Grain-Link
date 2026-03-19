@@ -1,5 +1,5 @@
 ﻿# Media compression script
-# Usage: powershell -ExecutionPolicy Bypass -File .\build\compress-media.ps1 -MallId "sakaikitahanada" [-CloudFrontDistributionId "EXXXXXXXXXX"]
+# Usage: powershell -ExecutionPolicy Bypass -File .\build\compress-media.ps1 -MallId "sakaikitahanada" -CloudFrontDistributionId "EXXXXXXXXXX"
 
 param(
     [string]$MallId = "",
@@ -121,7 +121,12 @@ if (Get-Command aws -ErrorAction SilentlyContinue) {
 
         # CloudFront Invalidation
         if ([string]::IsNullOrWhiteSpace($CloudFrontDistributionId)) {
-            $CloudFrontDistributionId = Read-Host "CloudFront Distribution ID を入力してください (スキップする場合はEnter)"
+            $CloudFrontDistributionId = Read-Host "CloudFront Distribution ID を入力してください (必須: version.jsonのキャッシュクリアに必要)"
+            if ([string]::IsNullOrWhiteSpace($CloudFrontDistributionId)) {
+                Write-Host "Warning: CloudFront Distribution IDが未入力です。version.jsonのキャッシュが残るため、アプリが古いZIPを参照し続ける可能性があります。" -ForegroundColor Red
+                Write-Host "手動でinvalidationを実行してください:" -ForegroundColor Yellow
+                Write-Host "  aws cloudfront create-invalidation --distribution-id <ID> --paths `"/grain-link/medias/videos/$MallId/version.json`"" -ForegroundColor Gray
+            }
         }
         if (-not [string]::IsNullOrWhiteSpace($CloudFrontDistributionId)) {
             Write-Host "Creating CloudFront invalidation..." -ForegroundColor Cyan
