@@ -103,7 +103,7 @@ Write-Host "  $versionPath" -ForegroundColor White
 Write-Host "  -> https://dl.tti.ninja/grain-link/medias/videos/$MallId/" -ForegroundColor Gray
 
 # Auto-upload via AWS CLI if available
-$s3Base = "s3://dl.tti.ninja/grain-link/medias/videos/$MallId"
+$s3Base = "s3://tti-distribution/grain-link/medias/videos/$MallId"
 
 if (Get-Command aws -ErrorAction SilentlyContinue) {
     Write-Host "`nAWS CLI detected. Uploading to S3..." -ForegroundColor Cyan
