@@ -51,6 +51,44 @@ jobs:
       - name: List release artifacts
         run: Get-ChildItem -Path release -File | Format-Table Name, Length
 
+      - name: Download existing S3 artifacts for archive
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
+          S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
+        run: |
+          S3_PREFIX="public/grain-link/releases"
+          mkdir -p s3-archive
+          echo "Downloading existing S3 artifacts for archive..."
+          aws s3 sync "s3://${S3_BUCKET}/${S3_PREFIX}/" s3-archive/ --exclude "latest.json" || echo "No existing artifacts found (first release)"
+          ls -la s3-archive/ || echo "Archive directory is empty"
+
+      - name: Upload S3 archive as workflow artifact
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: actions/upload-artifact@v4
+        with:
+          name: s3-archive-before-v${{ steps.get_version.outputs.version }}
+          path: s3-archive/
+          if-no-files-found: ignore
+          retention-days: 90
+
+      - name: Clean up old artifacts from S3
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
+          S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
+        run: |
+          S3_PREFIX="public/grain-link/releases"
+          echo "Cleaning up old versioned artifacts from S3 (keeping latest.json)..."
+          aws s3 rm "s3://${S3_BUCKET}/${S3_PREFIX}/" --recursive --exclude "latest.json" || echo "No existing artifacts to clean up"
+          echo "S3 cleanup complete."
+
       - name: Upload artifacts to S3
         if: startsWith(github.ref, 'refs/tags/v')
         shell: bash
