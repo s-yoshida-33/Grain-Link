@@ -8,13 +8,15 @@ param(
 
 # UTF-8 encoding
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+[Console]::InputEncoding  = [System.Text.Encoding]::UTF8
 
 # Stop on error
 $ErrorActionPreference = "Stop"
 
 # Require MallId
 if ([string]::IsNullOrWhiteSpace($MallId)) {
-    $MallId = Read-Host "モールIDを入力してください (例: sakaikitahanada)"
+    Write-Host "モールIDを入力してください (例: sakaikitahanada): " -NoNewline
+    $MallId = Read-Host
     if ([string]::IsNullOrWhiteSpace($MallId)) {
         Write-Host "Error: モールIDが入力されていません。" -ForegroundColor Red
         exit 1
