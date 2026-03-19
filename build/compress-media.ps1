@@ -100,10 +100,10 @@ Write-Host "  updated_at : $updatedAt" -ForegroundColor Gray
 Write-Host "`nDone! Upload the following files to S3:" -ForegroundColor Cyan
 Write-Host "  $zipPath" -ForegroundColor White
 Write-Host "  $versionPath" -ForegroundColor White
-Write-Host "  -> https://dl.tti.ninja/grain-link/medias/videos/$MallId/" -ForegroundColor Gray
+Write-Host "  -> https://dl.tti.ninja/public/grain-link/medias/videos/$MallId/" -ForegroundColor Gray
 
 # Auto-upload via AWS CLI if available
-$s3Base = "s3://tti-distribution/grain-link/medias/videos/$MallId"
+$s3Base = "s3://tti-distribution/public/grain-link/medias/videos/$MallId"
 
 if (Get-Command aws -ErrorAction SilentlyContinue) {
     Write-Host "`nAWS CLI detected. Uploading to S3..." -ForegroundColor Cyan
@@ -125,12 +125,12 @@ if (Get-Command aws -ErrorAction SilentlyContinue) {
             if ([string]::IsNullOrWhiteSpace($CloudFrontDistributionId)) {
                 Write-Host "Warning: CloudFront Distribution IDが未入力です。version.jsonのキャッシュが残るため、アプリが古いZIPを参照し続ける可能性があります。" -ForegroundColor Red
                 Write-Host "手動でinvalidationを実行してください:" -ForegroundColor Yellow
-                Write-Host "  aws cloudfront create-invalidation --distribution-id <ID> --paths `"/grain-link/medias/videos/$MallId/version.json`"" -ForegroundColor Gray
+                Write-Host "  aws cloudfront create-invalidation --distribution-id <ID> --paths `"/public/grain-link/medias/videos/$MallId/version.json`"" -ForegroundColor Gray
             }
         }
         if (-not [string]::IsNullOrWhiteSpace($CloudFrontDistributionId)) {
             Write-Host "Creating CloudFront invalidation..." -ForegroundColor Cyan
-            $invalidationPath = "/grain-link/medias/videos/$MallId/version.json"
+            $invalidationPath = "/public/grain-link/medias/videos/$MallId/version.json"
             aws cloudfront create-invalidation `
                 --distribution-id $CloudFrontDistributionId `
                 --paths $invalidationPath | Out-Null
