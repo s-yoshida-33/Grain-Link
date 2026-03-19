@@ -1,8 +1,9 @@
 ﻿# Media compression script
-# Usage: powershell -ExecutionPolicy Bypass -File .\build\compress-media.ps1 -MallId "sakaikitahanada"
+# Usage: powershell -ExecutionPolicy Bypass -File .\build\compress-media.ps1 -MallId "sakaikitahanada" [-CloudFrontDistributionId "EXXXXXXXXXX"]
 
 param(
-    [string]$MallId = ""
+    [string]$MallId = "",
+    [string]$CloudFrontDistributionId = ""
 )
 
 # UTF-8 encoding
@@ -117,6 +118,19 @@ if (Get-Command aws -ErrorAction SilentlyContinue) {
             --content-type "application/json" `
             --cache-control "no-cache, no-store"
         Write-Host "Uploaded: version.json (Cache-Control: no-cache)" -ForegroundColor Green
+
+        # CloudFront Invalidation
+        if ([string]::IsNullOrWhiteSpace($CloudFrontDistributionId)) {
+            $CloudFrontDistributionId = Read-Host "CloudFront Distribution ID を入力してください (スキップする場合はEnter)"
+        }
+        if (-not [string]::IsNullOrWhiteSpace($CloudFrontDistributionId)) {
+            Write-Host "Creating CloudFront invalidation..." -ForegroundColor Cyan
+            $invalidationPath = "/grain-link/medias/videos/$MallId/version.json"
+            aws cloudfront create-invalidation `
+                --distribution-id $CloudFrontDistributionId `
+                --paths $invalidationPath | Out-Null
+            Write-Host "CloudFront invalidation created: $invalidationPath" -ForegroundColor Green
+        }
 
         Write-Host "`nUpload complete!" -ForegroundColor Green
     } catch {
