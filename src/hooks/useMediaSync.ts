@@ -94,12 +94,13 @@ export const useMediaSync = () => {
         }
 
         // Primary: ZIP filename comparison (reliable even when CDN caches version.json)
-        const zipNameChanged = localZipName && remoteVersion.zip
-          ? remoteVersion.zip !== localZipName
-          : false;
+        // If localZipName is null (old metadata format without zip tracking), treat as unknown → download
+        const zipNameChanged = remoteVersion.zip != null && (
+          localZipName == null || remoteVersion.zip !== localZipName
+        );
 
-        // Fallback: updated_at timestamp comparison
-        const timestampNewer = localUpdatedAt && remoteVersion.updated_at
+        // Fallback: updated_at timestamp comparison (only when remote has no zip name)
+        const timestampNewer = !remoteVersion.zip && localUpdatedAt && remoteVersion.updated_at
           ? new Date(remoteVersion.updated_at).getTime() > new Date(localUpdatedAt).getTime()
           : false;
 
