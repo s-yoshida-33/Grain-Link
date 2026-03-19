@@ -6,7 +6,9 @@ param(
     [string]$CloudFrontDistributionId = ""
 )
 
-# UTF-8 encoding
+# Set console code page to UTF-8 (fixes garbled Japanese in Write-Host / Read-Host)
+chcp 65001 | Out-Null
+$OutputEncoding = [System.Text.Encoding]::UTF8
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 [Console]::InputEncoding  = [System.Text.Encoding]::UTF8
 
@@ -15,10 +17,10 @@ $ErrorActionPreference = "Stop"
 
 # Require MallId
 if ([string]::IsNullOrWhiteSpace($MallId)) {
-    Write-Host "モールIDを入力してください (例: sakaikitahanada): " -NoNewline
+    Write-Host "Mall ID (e.g. sakaikitahanada): " -NoNewline
     $MallId = Read-Host
     if ([string]::IsNullOrWhiteSpace($MallId)) {
-        Write-Host "Error: モールIDが入力されていません。" -ForegroundColor Red
+        Write-Host "Error: Mall ID is required." -ForegroundColor Red
         exit 1
     }
 }
@@ -29,7 +31,7 @@ Write-Host "Compressing media for mall: $MallId" -ForegroundColor Cyan
 $sourceDir = Join-Path $PSScriptRoot "..\tmp\$MallId\assets\videos\optimized"
 $fallbackDir = Join-Path $PSScriptRoot "..\tmp\$MallId\assets\videos"
 
-# Output paths: release/{mallId}/video-{yyyy-MM-dd}.zip
+# Output paths: release/{mallId}/video-{yyyy-MM-dd-HH-mm-ss}.zip
 $today = Get-Date -Format "yyyy-MM-dd-HH-mm-ss"
 $zipFileName = "video-$today.zip"
 $outputDir = Join-Path $PSScriptRoot "..\release\$MallId"
@@ -86,7 +88,7 @@ try {
     exit 1
 }
 
-# Generate version.json
+# Generate latest.json
 $updatedAt = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
 $versionJson = @{
     zip        = $zipFileName
@@ -121,9 +123,9 @@ if (Get-Command aws -ErrorAction SilentlyContinue) {
             --cache-control "no-cache, no-store"
         Write-Host "Uploaded: latest.json (Cache-Control: no-cache)" -ForegroundColor Green
 
-        # CloudFront Invalidation (コメントアウト中: s3-uploaderユーザーに cloudfront:CreateInvalidation 権限が付与されるまで無効)
-        # latest.json はパスが変わったため既存キャッシュの影響を受けないので、現時点では不要
-        # 権限付与後に有効化する場合は以下のコメントを外す:
+        # CloudFront Invalidation (disabled: s3-uploader lacks cloudfront:CreateInvalidation permission)
+        # latest.json is a new path so existing CDN cache does not affect it — not needed for now.
+        # To enable after granting permission, uncomment:
         # $invalidationPath = "/public/grain-link/medias/videos/$MallId/latest.json"
         # Write-Host "Creating CloudFront invalidation..." -ForegroundColor Cyan
         # aws cloudfront create-invalidation `
@@ -141,6 +143,5 @@ if (Get-Command aws -ErrorAction SilentlyContinue) {
     }
 } else {
     Write-Host "`n[INFO] AWS CLI not found. Please upload manually." -ForegroundColor Yellow
-    Write-Host "IMPORTANT: Upload version.json with Cache-Control: no-cache, no-store" -ForegroundColor Yellow
-    Write-Host "  aws s3 cp `"$versionPath`" `"$s3Base/version.json`" --cache-control `"no-cache, no-store`"" -ForegroundColor Gray
+    Write-Host "  aws s3 cp $versionPath $s3Base/latest.json --cache-control no-cache,no-store" -ForegroundColor Gray
 }
