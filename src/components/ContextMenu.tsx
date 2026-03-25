@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import { getVersion } from '@tauri-apps/api/app';
 import { loadSettings, saveSettings } from '../utils/settings';
 import type { AppMode, SleepSettings } from '../types/settings';
 
@@ -24,6 +25,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ children }) => {
   const [currentMode, setCurrentMode] = useState<AppMode | null>(null);
   const [isMuted, setIsMuted] = useState(false);
   const [sleepSettings, setSleepSettings] = useState<SleepSettings>(DEFAULT_SLEEP);
+  const [appVersion, setAppVersion] = useState<string>('');
 
   const hideMenu = useCallback(() => setVisible(false), []);
 
@@ -32,10 +34,14 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ children }) => {
       event.preventDefault();
       // メニュー表示時に最新の設定を読み込む
       try {
-        const settings = await loadSettings();
+        const [settings, version] = await Promise.all([
+          loadSettings(),
+          getVersion().catch(() => ''),
+        ]);
         setCurrentMode(settings.appMode);
         setIsMuted(settings.isMuted ?? false);
         setSleepSettings(settings.sleepSettings ?? DEFAULT_SLEEP);
+        setAppVersion(version);
       } catch {
         setCurrentMode(null);
       }
@@ -164,7 +170,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ children }) => {
     : currentMode === 'SHOP_LIST' ? 'VIDEO_AD'
     : null;
 
-  type MenuItem = { label: string; action: () => void; separator?: boolean };
+  type MenuItem = { label: string; action: () => void; separator?: boolean; disabled?: boolean };
   const items: MenuItem[] = [
     { label: 'リロード', action: reloadApp },
     ...(targetMode ? [{
@@ -189,7 +195,13 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ children }) => {
       action: changeSleepEndTime,
       separator: true,
     },
-    { label: '手動更新 (Releasesを開く)', action: openReleases, separator: true },
+    { label: '手動更新 (Releases)', action: openReleases },
+    {
+      label: `バージョン: ${appVersion ? `v${appVersion}` : '取得中…'}`,
+      action: () => {},
+      disabled: true,
+      separator: true,
+    },
     { label: '終了', action: quitApp },
   ];
 
@@ -206,7 +218,8 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ children }) => {
             color: '#f8f8f8',
             border: '1px solid #333',
             borderRadius: 4,
-            minWidth: 220,
+            minWidth: 160,
+            maxWidth: 200,
             boxShadow: '0 8px 24px rgba(0,0,0,0.35)',
             zIndex: 9999,
             overflow: 'hidden',
@@ -216,23 +229,26 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ children }) => {
             <button
               key={item.label}
               onClick={() => {
+                if (item.disabled) return;
                 hideMenu();
                 item.action();
               }}
               style={{
                 width: '100%',
                 textAlign: 'left',
-                padding: '10px 14px',
+                padding: '8px 12px',
                 backgroundColor: 'transparent',
-                color: '#f8f8f8',
+                color: item.disabled ? '#666' : '#f8f8f8',
                 border: 'none',
                 borderBottom: index === items.length - 1 ? 'none'
                   : item.separator ? '1px solid #444'
                   : '1px solid #2a2a2a',
-                cursor: 'pointer',
-                fontSize: 13,
+                cursor: item.disabled ? 'default' : 'pointer',
+                fontSize: 12,
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#2a2a2a')}
+              onMouseEnter={(e) => {
+                if (!item.disabled) e.currentTarget.style.backgroundColor = '#2a2a2a';
+              }}
               onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
             >
               {item.label}
