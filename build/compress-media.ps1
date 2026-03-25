@@ -28,8 +28,8 @@ if ([string]::IsNullOrWhiteSpace($MallId)) {
 Write-Host "Compressing media for mall: $MallId" -ForegroundColor Cyan
 
 # Source paths
-$sourceDir = Join-Path $PSScriptRoot "..\tmp\$MallId\assets\videos\optimized"
-$fallbackDir = Join-Path $PSScriptRoot "..\tmp\$MallId\assets\videos"
+$sourceDir = Join-Path $PSScriptRoot "..\medias\videos\$MallId\optimized"
+$fallbackDir = Join-Path $PSScriptRoot "..\medias\videos\$MallId"
 
 # Output paths: release/{mallId}/video-{yyyy-MM-dd-HH-mm-ss}.zip
 $today = Get-Date -Format "yyyy-MM-dd-HH-mm-ss"
