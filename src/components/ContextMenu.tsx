@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { getVersion } from '@tauri-apps/api/app';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 import { loadSettings, saveSettings } from '../utils/settings';
 import type { AppMode, SleepSettings } from '../types/settings';
 
@@ -68,6 +69,10 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ children }) => {
 
   const quitApp = useCallback(async () => {
     await invoke('quit_app');
+  }, []);
+
+  const minimizeWindow = useCallback(async () => {
+    await getCurrentWindow().minimize();
   }, []);
 
   const openReleases = useCallback(() => {
@@ -202,6 +207,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ children }) => {
       disabled: true,
       separator: true,
     },
+    { label: '最小化', action: minimizeWindow },
     { label: '終了', action: quitApp },
   ];
 
