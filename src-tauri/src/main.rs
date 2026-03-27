@@ -579,6 +579,41 @@ fn write_log_to_file(level: &str, tag: &str, message: &str) {
     }
 }
 
+// ── Shop change notification (bypasses state machine, sends Slack directly) ──
+
+#[derive(serde::Deserialize)]
+struct ShopChangeItem {
+    id: String,
+    name: String,
+}
+
+#[tauri::command]
+fn notify_shop_change(
+    added: Vec<ShopChangeItem>,
+    removed: Vec<ShopChangeItem>,
+) -> Result<(), String> {
+    if added.is_empty() && removed.is_empty() {
+        return Ok(());
+    }
+    let mut parts: Vec<String> = Vec::new();
+    if !added.is_empty() {
+        let list = added.iter().map(|s| format!("{} ({})", s.name, s.id)).collect::<Vec<_>>().join(", ");
+        parts.push(format!("追加: {}", list));
+    }
+    if !removed.is_empty() {
+        let list = removed.iter().map(|s| format!("{} ({})", s.name, s.id)).collect::<Vec<_>>().join(", ");
+        parts.push(format!("削除: {}", list));
+    }
+    let message = parts.join(" / ");
+    let context = match (added.len(), removed.len()) {
+        (a, 0) => format!("追加 {}件", a),
+        (0, r) => format!("削除 {}件", r),
+        (a, r) => format!("追加 {}件 / 削除 {}件", a, r),
+    };
+    send_slack_notification("WARN", "SHOPLIST", &message, false, &context);
+    Ok(())
+}
+
 // ── System tray ──────────────────────────────────────────────────
 
 fn setup_system_tray(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
@@ -949,7 +984,8 @@ fn main() {
             webview_ping,
             quit_app,
             pause_watchdog,
-            resume_watchdog
+            resume_watchdog,
+            notify_shop_change
         ])
         .setup(|app| {
             setup_system_tray(app)?;
