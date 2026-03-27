@@ -644,6 +644,7 @@ fn start_webview_watchdog(app_handle: tauri::AppHandle) {
                     Ok(p) => p,
                     Err(_) => {
                         send_slack_notification("FATAL", "WATCHDOG", &msg, false, "");
+                        FORCE_QUIT.store(true, Ordering::Relaxed);
                         app_handle.restart();
                     }
                 };
@@ -668,6 +669,9 @@ fn start_webview_watchdog(app_handle: tauri::AppHandle) {
                 write_log_to_file("WARN", "WATCHDOG", &restart_msg);
                 send_slack_notification("FATAL", "WATCHDOG", &restart_msg, false, "");
 
+                // FORCE_QUIT を立てることで on_window_event の prevent_close が
+                // スキップされ、ウィンドウ破棄時の TAO パニックを防ぐ。
+                FORCE_QUIT.store(true, Ordering::Relaxed);
                 app_handle.restart();
             }
         }
@@ -973,8 +977,13 @@ fn main() {
         })
         .on_window_event(|_window, event| {
             // Prevent window close — kiosk mode. Only tray "終了" or quit_app can exit.
+            // FORCE_QUIT が立っている場合(watchdog restart / quit_app)は
+            // prevent_close をスキップし、ウィンドウを正常に破棄させる。
+            // これにより tao の "cannot move state from Destroyed" パニックを防ぐ。
             if let WindowEvent::CloseRequested { api, .. } = event {
-                api.prevent_close();
+                if !FORCE_QUIT.load(Ordering::Relaxed) {
+                    api.prevent_close();
+                }
             }
         });
 
