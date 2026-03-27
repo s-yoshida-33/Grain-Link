@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { getVersion } from '@tauri-apps/api/app';
-import { getCurrentWindow } from '@tauri-apps/api/window';
 import { loadSettings, saveSettings } from '../utils/settings';
 import type { AppMode, SleepSettings } from '../types/settings';
 
@@ -72,7 +71,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ children }) => {
   }, []);
 
   const minimizeWindow = useCallback(async () => {
-    await getCurrentWindow().minimize();
+    await invoke('minimize_window');
   }, []);
 
   const openReleases = useCallback(() => {
