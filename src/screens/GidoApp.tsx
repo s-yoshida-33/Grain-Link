@@ -1,5 +1,6 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useAppSettings } from '../hooks/useAppSettings';
+import { useShopChangeDetection } from '../hooks/useShopChangeDetection';
 import { VideoSignageView } from './VideoSignageView';
 import { ShopListView } from './ShopListView';
 import { PatchScreen } from './PatchScreen';
@@ -105,6 +106,13 @@ export const GidoApp: React.FC = () => {
       window.removeEventListener('reload-current-view', handleReloadCurrentView);
     };
   }, [loadShops]);
+
+  // ショップリストの変化（追加・削除）を検出して Slack 通知
+  const shopChangeItems = useMemo(
+    () => shops.map(s => ({ id: String(s.id), name: s.name })),
+    [shops],
+  );
+  useShopChangeDetection(shopChangeItems, settings?.mallId ?? '');
 
   if (settingsLoading || !settings) {
     return <div className="flex items-center justify-center h-screen">Loading settings...</div>;
