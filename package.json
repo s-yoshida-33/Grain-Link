@@ -6,7 +6,7 @@
   "description": "Grain Link Application",
   "author": "Toei Techno International Inc.",
   "license": "UNLICENSED",
-  "copyright": "\u00a9 2026 Toei Techno International Inc.",
+  "copyright": "© 2026 Toei Techno International Inc.",
   "repository": {
     "type": "git",
     "url": "https://github.com/s-yoshida-33/Grain-Link.git"
@@ -29,6 +29,7 @@
     "bump:version": "powershell -ExecutionPolicy Bypass -File ./build/bump-version.ps1"
   },
   "dependencies": {
+    "@fontsource/noto-sans-jp": "^5.2.9",
     "@tauri-apps/plugin-dialog": "^2.0.0",
     "@tauri-apps/plugin-fs": "^2.0.0",
     "@tauri-apps/plugin-http": "^2.5.7",
