@@ -1408,7 +1408,7 @@ dependencies = [
 
 [[package]]
 name = "grain-link"
-version = "1.1.17"
+version = "1.1.18"
 dependencies = [
  "chrono",
  "dirs 5.0.1",
