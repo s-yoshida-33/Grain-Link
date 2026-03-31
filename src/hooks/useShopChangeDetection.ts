@@ -21,14 +21,16 @@ export const useShopChangeDetection = (
   shops: ShopEntry[],
   mallId: string,
 ) => {
-  const prevIdsRef = useRef<string>('');
+  // mallId を含めたキーで重複実行を防ぐ。
+  // mallId 変化時はキーが変わるため、新しい mallId に対して必ず detect を実行する。
+  const prevKeyRef = useRef<string>('');
 
   useEffect(() => {
     if (!mallId || shops.length === 0) return;
 
-    const currentIds = shops.map(s => s.id).sort().join(',');
-    if (currentIds === prevIdsRef.current) return;
-    prevIdsRef.current = currentIds;
+    const currentKey = `${mallId}:${shops.map(s => s.id).sort().join(',')}`;
+    if (currentKey === prevKeyRef.current) return;
+    prevKeyRef.current = currentKey;
 
     const options = { baseDir: BaseDirectory.AppLocalData };
     const filename = `shop-snapshot-${mallId}.json`;
@@ -51,7 +53,7 @@ export const useShopChangeDetection = (
 
       if (isFirst) {
         await writeTextFile(filename, JSON.stringify({ shops } satisfies ShopSnapshot), options);
-        logInfo('DATA_SYNC', 'ショップスナップショットを初期化しました', {
+        logInfo('SHOPLIST', 'ショップスナップショットを初期化しました', {
           count: String(shops.length),
           mall: mallId,
         });
@@ -71,19 +73,21 @@ export const useShopChangeDetection = (
       await invoke('notify_shop_change', { added, removed });
 
       if (added.length > 0) {
-        logInfo('DATA_SYNC', `新規ショップ検出: ${added.map(s => s.name).join(', ')}`, {
+        logInfo('SHOPLIST', `新規ショップ検出: ${added.map(s => s.name).join(', ')}`, {
           count: String(added.length),
           mall: mallId,
         });
       }
       if (removed.length > 0) {
-        logInfo('DATA_SYNC', `ショップ削除検出: ${removed.map(s => s.name).join(', ')}`, {
+        logInfo('SHOPLIST', `ショップ削除検出: ${removed.map(s => s.name).join(', ')}`, {
           count: String(removed.length),
           mall: mallId,
         });
       }
     };
 
-    detect().catch(() => {});
+    detect().catch(() => {
+      // スナップショット I/O エラーは通知をスキップするだけで致命的でない
+    });
   }, [shops, mallId]);
 };
