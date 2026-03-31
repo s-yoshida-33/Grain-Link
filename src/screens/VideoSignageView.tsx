@@ -5,6 +5,7 @@ import { convertFileSrc } from '@tauri-apps/api/core';
 import type { Shop } from '../types/shop';
 import { useActiveShopByVideo } from '../hooks/useActiveShopByVideo';
 import { useAppSettings } from '../hooks/useAppSettings';
+import { useScreenSleepState } from '../hooks/useScreenSleepState';
 import { logDebug, logError, logWarn } from '../logs/logging';
 import { LocalVideoPlayer } from '../components/LocalVideoPlayer';
 import { ShopInfoOverlay } from '../components/ShopInfoOverlay';
@@ -17,18 +18,8 @@ interface VideoSignageViewProps {
 export const VideoSignageView: React.FC<VideoSignageViewProps> = ({ shops }) => {
   const [playlist, setPlaylist] = useState<string[]>([]);
   const [currentVideoFile, setCurrentVideoFile] = useState<string>("");
-  const [isSleeping, setIsSleeping] = useState(false);
+  const isSleeping = useScreenSleepState();
   const { settings } = useAppSettings();
-
-  // 暗転状態の変化を監視し、暗転中は音声をミュートにする
-  useEffect(() => {
-    const handleSleepChange = (e: Event) => {
-      const detail = (e as CustomEvent<{ sleeping: boolean }>).detail;
-      setIsSleeping(detail.sleeping);
-    };
-    window.addEventListener('screen-sleep-change', handleSleepChange);
-    return () => window.removeEventListener('screen-sleep-change', handleSleepChange);
-  }, []);
 
   const activeShop = useActiveShopByVideo(shops, currentVideoFile);
 
