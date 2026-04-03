@@ -65,19 +65,15 @@ export const GidoApp: React.FC = () => {
         }
       });
 
-      // 'shops' イベント: JSONデータを直接反映
-      sseClient.on('shops', (data) => {
-        logInfo('DATA_SYNC', 'Received "shops" event via SSE', {
-          dataSize: JSON.stringify(data).length
-        });
-        const normalized = normalizeShops(data, settings.apiEndpoint);
-        loadShops(normalized);
+      // 分離パターン: SSEは更新通知のみ。データはREST経由で取得する。
+      sseClient.on('shops', () => {
+        logInfo('DATA_SYNC', 'Shop update signal received via SSE, fetching from REST');
+        loadShops();
       });
 
-      // 'update' イベント: REST API再取得
       sseClient.on('update', () => {
-         logInfo('DATA_SYNC', 'Received "update" event via SSE - Reloading from API');
-         loadShops();
+        logInfo('DATA_SYNC', 'Update signal received via SSE, fetching from REST');
+        loadShops();
       });
 
       // エンドポイントが設定されていれば接続
