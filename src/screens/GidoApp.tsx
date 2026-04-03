@@ -6,7 +6,7 @@ import { ShopListView } from './ShopListView';
 import { PatchScreen } from './PatchScreen';
 import { sseClient } from '../api/sseClient';
 import { fetchShopsFromApi } from '../api/restClient';
-import { normalizeShops, generateMockShops } from '../utils/shopData';
+import { generateMockShops } from '../utils/shopData';
 import { logInfo, logWarn } from '../logs/logging';
 import type { Shop } from '../types/shop';
 
