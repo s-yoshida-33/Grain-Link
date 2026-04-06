@@ -70,6 +70,34 @@ fn get_log_file_path() -> Result<std::path::PathBuf, String> {
     Ok(log_dir.join(format!("grain-link-{}.log", today)))
 }
 
+/// Delete log files older than max_age_days days
+fn cleanup_old_logs(max_age_days: u64) {
+    let log_dir = match get_log_dir() {
+        Ok(d) => d,
+        Err(_) => return,
+    };
+    let cutoff = match std::time::SystemTime::now()
+        .checked_sub(std::time::Duration::from_secs(max_age_days * 86400))
+    {
+        Some(t) => t,
+        None => return,
+    };
+    if let Ok(entries) = fs::read_dir(&log_dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.extension().and_then(|e| e.to_str()) == Some("log") {
+                if let Ok(meta) = fs::metadata(&path) {
+                    if let Ok(modified) = meta.modified() {
+                        if modified < cutoff {
+                            let _ = fs::remove_file(&path);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 // ── System info (CPU, memory, GPU, OS) ───────────────────────────
 
 struct StaticHardwareInfo {
@@ -973,6 +1001,7 @@ fn install_panic_hook() {
 
 fn main() {
     install_panic_hook();
+    cleanup_old_logs(30);
 
     let builder = tauri::Builder::default()
         .manage(AppState::default())
