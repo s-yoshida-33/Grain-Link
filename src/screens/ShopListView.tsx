@@ -50,7 +50,7 @@ export const ShopListView: React.FC<ShopListViewProps> = ({ shops, gridConfig })
     });
 
     return slots;
-  }, [shops]);
+  }, [shops, settings?.genreSubFilter]);
 
   return (
     <div 
