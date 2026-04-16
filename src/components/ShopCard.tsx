@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useLayoutEffect } from 'react';
 import type { Shop } from '../types/shop';
 import { formatShopName, formatGenreMemo, formatLastOrder } from '../utils/format';
 import { useAppSettings } from '../hooks/useAppSettings';
@@ -15,6 +15,27 @@ export const ShopCard: React.FC<ShopCardProps> = ({ shop }) => {
   const comingSoonImage = `./assets/malls/${mallId}/coming-soon.webp`;
   
   const [imageUrl, setImageUrl] = useState<string>("");
+  const genreMemoContainerRef = useRef<HTMLSpanElement>(null);
+  const genreMemoTextRef = useRef<HTMLSpanElement>(null);
+
+  const adjustGenreMemoScale = useCallback(() => {
+    const container = genreMemoContainerRef.current;
+    const text = genreMemoTextRef.current;
+    if (!container || !text) return;
+    const containerWidth = container.clientWidth;
+    const textWidth = text.scrollWidth;
+    text.style.transform =
+      textWidth > containerWidth && containerWidth > 0
+        ? `scaleX(${containerWidth / textWidth})`
+        : "scaleX(1)";
+  }, []);
+
+  useLayoutEffect(() => {
+    adjustGenreMemoScale();
+    document.fonts.ready.then(adjustGenreMemoScale);
+    const timer = setTimeout(adjustGenreMemoScale, 100);
+    return () => clearTimeout(timer);
+  }, [shop?.genreMemo, adjustGenreMemoScale]);
 
   // 画像URLを処理（ローカルファイルパスの場合は Object URL に変換）
   useEffect(() => {
@@ -91,8 +112,22 @@ export const ShopCard: React.FC<ShopCardProps> = ({ shop }) => {
             </span>
           )}
           {shop.genreMemo && (
-            <span className="text-[16px] font-bold text-brand-brown">
-              {formatGenreMemo(shop.genreMemo)}
+            <span
+              ref={genreMemoContainerRef}
+              className="text-[16px] font-bold text-brand-brown flex-1 overflow-hidden"
+              style={{ display: "block", whiteSpace: "nowrap" }}
+            >
+              <span
+                ref={genreMemoTextRef}
+                style={{
+                  display: "inline-block",
+                  whiteSpace: "nowrap",
+                  transformOrigin: "left center",
+                  transform: "scaleX(1)",
+                }}
+              >
+                {formatGenreMemo(shop.genreMemo)}
+              </span>
             </span>
           )}
         </div>
