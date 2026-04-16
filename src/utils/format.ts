@@ -13,11 +13,17 @@ export const formatShopName = (name: string): string => {
 
 /**
  * ジャンルメモを整形する
- * 例: "たこ焼き・焼きそば" -> "たこ焼き / 焼きそば"
+ * 区切り文字（・ または |）で分割し、最大3件を " / " で結合する
+ * 例: "たこ焼き・焼きそば・お好み焼き・ソース" -> "たこ焼き / 焼きそば / お好み焼き"
  */
 export const formatGenreMemo = (genre: string): string => {
   if (!genre) return "";
-  return genre.replace(/・/g, " / ");
+  return genre
+    .split(/[・|]+/)
+    .map(s => s.trim())
+    .filter(s => s.length > 0)
+    .slice(0, 3)
+    .join(" / ");
 };
 
 /**
