@@ -174,7 +174,7 @@ export const useMediaDownload = () => {
   }, []);
 
   // Sync media via ZIP archive with progress events from Rust
-  const syncMediaFromZip = useCallback(async (zipUrl: string) => {
+  const syncMediaFromZip = useCallback(async (zipUrl: string, mallId: string, hostname: string) => {
     let startTime = Date.now();
 
     // Listen for progress events from Rust backend
@@ -231,7 +231,7 @@ export const useMediaDownload = () => {
       startTime = Date.now();
       logInfo('MEDIA_SYNC', `Starting ZIP sync from: ${zipUrl}`);
 
-      await invoke('sync_media_from_zip', { url: zipUrl });
+      await invoke('sync_media_from_zip', { url: zipUrl, mallId, hostname });
 
       setDownloadStatus({
         status: 'completed',

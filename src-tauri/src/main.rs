@@ -449,12 +449,15 @@ struct MediaProgress {
 }
 
 #[tauri::command]
-async fn sync_media_from_zip(app: tauri::AppHandle, url: String) -> Result<DownloadResponse, String> {
-    // Target directory: AppData/Local/com.tti.grain-link/videos/
+async fn sync_media_from_zip(app: tauri::AppHandle, url: String, mall_id: String, hostname: String) -> Result<DownloadResponse, String> {
+    // Target directory: AppData/Local/com.tti.grain-link/medias/videos/{mall_id}/{hostname}/
     let extract_dir = dirs::data_local_dir()
         .ok_or("Failed to get local data directory")?
         .join("com.tti.grain-link")
-        .join("videos");
+        .join("medias")
+        .join("videos")
+        .join(&mall_id)
+        .join(&hostname);
 
     // Clean up existing videos directory to ensure stale files are removed on differential updates
     if extract_dir.exists() {
