@@ -156,7 +156,7 @@ export const ShopCard: React.FC<ShopCardProps> = ({ shop }) => {
         {shop.openTime && formatLastOrder(shop.openTime) && (
           <p
             ref={lastOrderContainerRef}
-            className="text-[16px] font-bold text-brand-brown ml-2 mt-5 w-[calc(100%-0.5rem)] overflow-hidden"
+            className="text-[16px] font-bold text-brand-brown ml-2 mr-2 mt-5 w-[calc(100%-1rem)] overflow-hidden"
             style={{ whiteSpace: "nowrap" }}
           >
             <span
