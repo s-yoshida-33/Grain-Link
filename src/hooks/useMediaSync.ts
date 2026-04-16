@@ -72,7 +72,13 @@ export const useMediaSync = () => {
       }
 
       const mallId = settings?.mallId ?? 'sakaikitahanada';
-      logInfo('BOOT', `Fetching media version from S3 (mallId: ${mallId})...`);
+      const hostname = settings?.hostname ?? '';
+      if (!hostname) {
+        logInfo('BOOT', 'Hostname not configured, skipping media download');
+        setMediaStatus({ status: 'done', progress: 100, message: 'ホスト名未設定のためメディア同期をスキップ' });
+        return;
+      }
+      logInfo('BOOT', `Fetching media version from S3 (mallId: ${mallId}, hostname: ${hostname})...`);
       let timeoutId: ReturnType<typeof setTimeout>;
       const timeoutPromise = new Promise<{ zip: string | null; updated_at: string | null }>((resolve) => {
         timeoutId = setTimeout(() => {
@@ -82,7 +88,7 @@ export const useMediaSync = () => {
       });
 
       const remoteVersion = await Promise.race([
-        fetchMediaVersionFromS3(mallId).finally(() => clearTimeout(timeoutId!)),
+        fetchMediaVersionFromS3(mallId, hostname).finally(() => clearTimeout(timeoutId!)),
         timeoutPromise,
       ]);
 
@@ -126,7 +132,7 @@ export const useMediaSync = () => {
         return;
       }
 
-      const mediaZipUrl = `https://dl.tti.ninja/grain-link/medias/videos/${mallId}/${remoteVersion.zip}`;
+      const mediaZipUrl = `https://dl.tti.ninja/grain-link/medias/videos/${mallId}/${hostname}/${remoteVersion.zip}`;
       logInfo('BOOT', `${isFirstBoot ? 'First boot' : 'Found media update'}, downloading from: ${mediaZipUrl}`);
       setMediaStatus({ status: 'downloading', progress: 0, message: 'メディアデータをダウンロード中…' });
 
@@ -151,7 +157,7 @@ export const useMediaSync = () => {
       });
       setMediaStatus({ status: 'error', progress: 0, message: 'メディアの更新に失敗しました' });
     }
-  }, [syncMediaFromZip, settings?.appMode, settings?.mallId]);
+  }, [syncMediaFromZip, settings?.appMode, settings?.mallId, settings?.hostname]);
 
   // Forward download progress from useMediaDownload into mediaStatus
   useEffect(() => {

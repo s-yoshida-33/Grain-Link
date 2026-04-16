@@ -29,4 +29,6 @@ export interface AppSettings {
   sleepSettings?: SleepSettings;
   /** 新API用 genreSub フィルター。未設定時は従来の genre + area フィルターを使用 */
   genreSubFilter?: string;
+  /** 端末ホスト名（S3メディアパスの識別子として使用） */
+  hostname?: string;
 }

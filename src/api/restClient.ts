@@ -106,10 +106,10 @@ export const fetchMediaDownloadStatusFromApi = async (mallId: string): Promise<{
 };
 
 // S3 の latest.json からメディアの最新バージョン情報を取得
-export const fetchMediaVersionFromS3 = async (mallId: string): Promise<{ zip: string | null; updated_at: string | null }> => {
+export const fetchMediaVersionFromS3 = async (mallId: string, hostname: string): Promise<{ zip: string | null; updated_at: string | null }> => {
   try {
     const { fetch: tauriFetch } = await import('@tauri-apps/plugin-http');
-    const url = `https://dl.tti.ninja/grain-link/medias/videos/${mallId}/latest.json?t=${Date.now()}`;
+    const url = `https://dl.tti.ninja/grain-link/medias/videos/${mallId}/${hostname}/latest.json?t=${Date.now()}`;
 
     const response = await tauriFetch(url, {
       headers: {
