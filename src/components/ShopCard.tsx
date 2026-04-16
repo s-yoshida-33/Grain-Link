@@ -17,10 +17,24 @@ export const ShopCard: React.FC<ShopCardProps> = ({ shop }) => {
   const [imageUrl, setImageUrl] = useState<string>("");
   const genreMemoContainerRef = useRef<HTMLSpanElement>(null);
   const genreMemoTextRef = useRef<HTMLSpanElement>(null);
+  const lastOrderContainerRef = useRef<HTMLParagraphElement>(null);
+  const lastOrderTextRef = useRef<HTMLSpanElement>(null);
 
   const adjustGenreMemoScale = useCallback(() => {
     const container = genreMemoContainerRef.current;
     const text = genreMemoTextRef.current;
+    if (!container || !text) return;
+    const containerWidth = container.clientWidth;
+    const textWidth = text.scrollWidth;
+    text.style.transform =
+      textWidth > containerWidth && containerWidth > 0
+        ? `scaleX(${containerWidth / textWidth})`
+        : "scaleX(1)";
+  }, []);
+
+  const adjustLastOrderScale = useCallback(() => {
+    const container = lastOrderContainerRef.current;
+    const text = lastOrderTextRef.current;
     if (!container || !text) return;
     const containerWidth = container.clientWidth;
     const textWidth = text.scrollWidth;
@@ -36,6 +50,13 @@ export const ShopCard: React.FC<ShopCardProps> = ({ shop }) => {
     const timer = setTimeout(adjustGenreMemoScale, 100);
     return () => clearTimeout(timer);
   }, [shop?.genreMemo, adjustGenreMemoScale]);
+
+  useLayoutEffect(() => {
+    adjustLastOrderScale();
+    document.fonts.ready.then(adjustLastOrderScale);
+    const timer = setTimeout(adjustLastOrderScale, 100);
+    return () => clearTimeout(timer);
+  }, [shop?.openTime, adjustLastOrderScale]);
 
   // 画像URLを処理（ローカルファイルパスの場合は Object URL に変換）
   useEffect(() => {
@@ -133,8 +154,22 @@ export const ShopCard: React.FC<ShopCardProps> = ({ shop }) => {
         </div>
         <h3 className="text-[24px] font-bold text-brand-brown ml-2">{formatShopName(shop.name)}</h3>
         {shop.openTime && formatLastOrder(shop.openTime) && (
-          <p className="text-[16px] font-bold text-brand-brown ml-2 mt-5">
-            {formatLastOrder(shop.openTime)}
+          <p
+            ref={lastOrderContainerRef}
+            className="text-[16px] font-bold text-brand-brown ml-2 mt-5 w-full overflow-hidden"
+            style={{ whiteSpace: "nowrap" }}
+          >
+            <span
+              ref={lastOrderTextRef}
+              style={{
+                display: "inline-block",
+                whiteSpace: "nowrap",
+                transformOrigin: "left center",
+                transform: "scaleX(1)",
+              }}
+            >
+              {formatLastOrder(shop.openTime)}
+            </span>
           </p>
         )}
       </div>
