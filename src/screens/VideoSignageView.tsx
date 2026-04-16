@@ -85,16 +85,17 @@ export const VideoSignageView: React.FC<VideoSignageViewProps> = ({ shops }) => 
           });
         }
 
-        // 3) Local (AppLocalData) 配下の標準パス: videos
-        // appLocalDataDir() はすでに com.tti.grain-link を指しているので、
-        // そこに videos サブディレクトリがあるはず
+        // 3) Local (AppLocalData) 配下の標準パス: medias/videos/{mallId}/{hostname}
+        const hostname = settings?.hostname ?? '';
         const localDir = await appLocalDataDir();
-        const localTarget = await join(localDir, 'videos');
-        candidates.push({
-          label: 'AppLocalData/videos',
-          dirPath: localTarget,
-          entries: readDir(localTarget),
-        });
+        if (hostname) {
+          const localTarget = await join(localDir, 'medias', 'videos', mallId, hostname);
+          candidates.push({
+            label: `AppLocalData/medias/videos/${mallId}/${hostname}`,
+            dirPath: localTarget,
+            entries: readDir(localTarget),
+          });
+        }
 
         let pickedDir = '';
         let pickedEntries: Awaited<ReturnType<typeof readDir>> | null = null;

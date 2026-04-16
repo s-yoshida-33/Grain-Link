@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { BaseDirectory, exists, readTextFile, writeTextFile } from '@tauri-apps/plugin-fs';
+import { BaseDirectory, exists, mkdir, readTextFile, writeTextFile } from '@tauri-apps/plugin-fs';
 import { useMediaDownload } from './useMediaDownload';
 import { useAppSettings } from './useAppSettings';
 import { fetchMediaVersionFromS3 } from '../api/restClient';
@@ -11,7 +11,10 @@ export interface MediaSyncStatus {
   message: string;
 }
 
-const MEDIA_META_FILE = 'media-meta.json';
+const mediaMetaPath = (mallId: string, hostname: string) =>
+  `medias/videos/${mallId}/${hostname}/media-meta.json`;
+const mediaVideosDir = (mallId: string, hostname: string) =>
+  `medias/videos/${mallId}/${hostname}`;
 
 /**
  * Automatically checks for media updates on mount and downloads if needed.
@@ -38,14 +41,24 @@ export const useMediaSync = () => {
       setMediaStatus({ status: 'checking', progress: 0, message: 'メディアデータを確認中…' });
       logInfo('BOOT', 'Checking for media updates via S3...');
 
+      const mallId = settings?.mallId ?? 'sakaikitahanada';
+      const hostname = settings?.hostname ?? '';
+      if (!hostname) {
+        logInfo('BOOT', 'Hostname not configured, skipping media download');
+        setMediaStatus({ status: 'done', progress: 100, message: 'ホスト名未設定のためメディア同期をスキップ' });
+        return;
+      }
       let localUpdatedAt: string | null = null;
       let localZipName: string | null = null;
       let isFirstBoot = false;
 
+      const metaFile = mediaMetaPath(mallId, hostname);
+      const videosDir = mediaVideosDir(mallId, hostname);
+
       try {
-        const metaExists = await exists(MEDIA_META_FILE, { baseDir: BaseDirectory.AppLocalData });
+        const metaExists = await exists(metaFile, { baseDir: BaseDirectory.AppLocalData });
         if (metaExists) {
-          const metaContent = await readTextFile(MEDIA_META_FILE, { baseDir: BaseDirectory.AppLocalData });
+          const metaContent = await readTextFile(metaFile, { baseDir: BaseDirectory.AppLocalData });
           const meta = JSON.parse(metaContent);
           localUpdatedAt = meta.lastMediaUpdatedAt || null;
           localZipName = meta.lastZipName || null;
@@ -61,7 +74,7 @@ export const useMediaSync = () => {
 
       if (!isFirstBoot) {
         try {
-          const videosDirExists = await exists('videos', { baseDir: BaseDirectory.AppLocalData });
+          const videosDirExists = await exists(videosDir, { baseDir: BaseDirectory.AppLocalData });
           if (!videosDirExists) {
             logInfo('BOOT', 'Media metadata exists but videos directory is missing, treating as first boot');
             isFirstBoot = true;
@@ -71,13 +84,6 @@ export const useMediaSync = () => {
         }
       }
 
-      const mallId = settings?.mallId ?? 'sakaikitahanada';
-      const hostname = settings?.hostname ?? '';
-      if (!hostname) {
-        logInfo('BOOT', 'Hostname not configured, skipping media download');
-        setMediaStatus({ status: 'done', progress: 100, message: 'ホスト名未設定のためメディア同期をスキップ' });
-        return;
-      }
       logInfo('BOOT', `Fetching media version from S3 (mallId: ${mallId}, hostname: ${hostname})...`);
       let timeoutId: ReturnType<typeof setTimeout>;
       const timeoutPromise = new Promise<{ zip: string | null; updated_at: string | null }>((resolve) => {
@@ -136,12 +142,14 @@ export const useMediaSync = () => {
       logInfo('BOOT', `${isFirstBoot ? 'First boot' : 'Found media update'}, downloading from: ${mediaZipUrl}`);
       setMediaStatus({ status: 'downloading', progress: 0, message: 'メディアデータをダウンロード中…' });
 
-      await syncMediaFromZip(mediaZipUrl);
+      await syncMediaFromZip(mediaZipUrl, mallId, hostname);
 
       const updatedAt = remoteVersion.updated_at || new Date().toISOString();
       try {
+        // Ensure directory exists before writing meta (Rust creates it on extract, but guard just in case)
+        await mkdir(videosDir, { baseDir: BaseDirectory.AppLocalData, recursive: true });
         await writeTextFile(
-          MEDIA_META_FILE,
+          metaFile,
           JSON.stringify({ lastMediaUpdatedAt: updatedAt, lastZipName: remoteVersion.zip || null }),
           { baseDir: BaseDirectory.AppLocalData },
         );
