@@ -1,8 +1,9 @@
 # Media compression script
-# Usage: powershell -ExecutionPolicy Bypass -File .\build\compress-media.ps1 -MallId "sakaikitahanada" -CloudFrontDistributionId "EXXXXXXXXXX"
+# Usage: powershell -ExecutionPolicy Bypass -File .\build\compress-media.ps1 -MallId "sakaikitahanada" -HostName "3-WMT-55-01" -CloudFrontDistributionId "EXXXXXXXXXX"
 
 param(
     [string]$MallId = "",
+    [string]$HostName = "",
     [string]$CloudFrontDistributionId = ""
 )
 
@@ -25,16 +26,26 @@ if ([string]::IsNullOrWhiteSpace($MallId)) {
     }
 }
 
-Write-Host "Compressing media for mall: $MallId" -ForegroundColor Cyan
+# Require HostName
+if ([string]::IsNullOrWhiteSpace($HostName)) {
+    Write-Host "Host Name (e.g. 3-WMT-55-01): " -NoNewline
+    $HostName = Read-Host
+    if ([string]::IsNullOrWhiteSpace($HostName)) {
+        Write-Host "Error: Host Name is required." -ForegroundColor Red
+        exit 1
+    }
+}
+
+Write-Host "Compressing media for mall: $MallId, host: $HostName" -ForegroundColor Cyan
 
 # Source paths
-$sourceDir = Join-Path $PSScriptRoot "..\medias\videos\$MallId\optimized"
-$fallbackDir = Join-Path $PSScriptRoot "..\medias\videos\$MallId"
+$sourceDir = Join-Path $PSScriptRoot "..\medias\videos\$MallId\$HostName\optimized"
+$fallbackDir = Join-Path $PSScriptRoot "..\medias\videos\$MallId\$HostName"
 
-# Output paths: release/{mallId}/video-{yyyy-MM-dd-HH-mm-ss}.zip
+# Output paths: release/{mallId}/{hostName}/video-{yyyy-MM-dd-HH-mm-ss}.zip
 $today = Get-Date -Format "yyyy-MM-dd-HH-mm-ss"
 $zipFileName = "video-$today.zip"
-$outputDir = Join-Path $PSScriptRoot "..\release\$MallId"
+$outputDir = Join-Path $PSScriptRoot "..\release\$MallId\$HostName"
 $zipPath = Join-Path $outputDir $zipFileName
 $versionPath = Join-Path $outputDir "latest.json"
 
@@ -104,10 +115,10 @@ Write-Host "  updated_at : $updatedAt" -ForegroundColor Gray
 Write-Host "`nDone! Upload the following files to S3:" -ForegroundColor Cyan
 Write-Host "  $zipPath" -ForegroundColor White
 Write-Host "  $versionPath" -ForegroundColor White
-Write-Host "  -> https://dl.tti.ninja/public/grain-link/medias/videos/$MallId/" -ForegroundColor Gray
+Write-Host "  -> https://dl.tti.ninja/public/grain-link/medias/videos/$MallId/$HostName/" -ForegroundColor Gray
 
 # Auto-upload via AWS CLI if available
-$s3Base = "s3://tti-distribution/public/grain-link/medias/videos/$MallId"
+$s3Base = "s3://tti-distribution/public/grain-link/medias/videos/$MallId/$HostName"
 
 if (Get-Command aws -ErrorAction SilentlyContinue) {
     # --- Archive existing S3 ZIPs before uploading new one ---
@@ -151,7 +162,7 @@ if (Get-Command aws -ErrorAction SilentlyContinue) {
         # CloudFront Invalidation (disabled: s3-uploader lacks cloudfront:CreateInvalidation permission)
         # latest.json is a new path so existing CDN cache does not affect it — not needed for now.
         # To enable after granting permission, uncomment:
-        # $invalidationPath = "/public/grain-link/medias/videos/$MallId/latest.json"
+        # $invalidationPath = "/public/grain-link/medias/videos/$MallId/$HostName/latest.json"
         # Write-Host "Creating CloudFront invalidation..." -ForegroundColor Cyan
         # aws cloudfront create-invalidation `
         #     --distribution-id $CloudFrontDistributionId `

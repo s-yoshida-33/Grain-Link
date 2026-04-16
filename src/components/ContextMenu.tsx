@@ -28,6 +28,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ children }) => {
   const [isMuted, setIsMuted] = useState(false);
   const [sleepSettings, setSleepSettings] = useState<SleepSettings>(DEFAULT_SLEEP);
   const [genreSubFilter, setGenreSubFilter] = useState<string | undefined>(undefined);
+  const [hostname, setHostname] = useState<string>('');
   const [appVersion, setAppVersion] = useState<string>('');
 
   const hideMenu = useCallback(() => setVisible(false), []);
@@ -45,6 +46,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ children }) => {
         setIsMuted(settings.isMuted ?? false);
         setSleepSettings(settings.sleepSettings ?? DEFAULT_SLEEP);
         setGenreSubFilter(settings.genreSubFilter);
+        setHostname(settings.hostname ?? '');
         setAppVersion(version);
       } catch {
         setCurrentMode(null);
@@ -171,6 +173,26 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ children }) => {
     }
   }, [hideMenu, sleepSettings]);
 
+  // ホスト名を変更する
+  const changeHostname = useCallback(async () => {
+    hideMenu();
+    const input = window.prompt(
+      'ホスト名を入力してください（例: 3-WMT-55-01）',
+      hostname,
+    );
+    if (input === null) return;
+    const trimmed = input.trim();
+    try {
+      const settings = await loadSettings();
+      settings.hostname = trimmed || undefined;
+      await saveSettings(settings);
+      setHostname(trimmed);
+      window.dispatchEvent(new CustomEvent('reload-settings'));
+    } catch {
+      // 保存失敗時は何もしない
+    }
+  }, [hideMenu, hostname]);
+
   // genreSub フィルターを設定・解除する
   const changeGenreSubFilter = useCallback(async (value: string | undefined) => {
     hideMenu();
@@ -213,6 +235,10 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ children }) => {
     {
       label: `終了時刻: ${sleepSettings.endTime}`,
       action: changeSleepEndTime,
+    },
+    {
+      label: `ホスト名: ${hostname || '未設定'}`,
+      action: changeHostname,
       separator: true,
     },
     // genreSub フィルター（新API対応）

@@ -1,6 +1,6 @@
 # build/optimize-media.ps1
 # Local media video optimization script
-# Optimizes .mp4 files in medias/videos/{mallId}/ using ffmpeg and saves to optimized/
+# Optimizes .mp4 files in medias/videos/{mallId}/{hostName}/ using ffmpeg and saves to optimized/
 
 $ErrorActionPreference = "Stop"
 
@@ -20,45 +20,49 @@ if ($mallDirs.Count -eq 0) {
 }
 
 Write-Host "`n=== Local Media Video Optimization ===" -ForegroundColor Cyan
-Write-Host "Target malls: $($mallDirs.Count)`n"
 
 foreach ($mall in $mallDirs) {
-    $videosDir = $mall.FullName
+    $hostDirs = Get-ChildItem -Path $mall.FullName -Directory | Where-Object { -not $_.Name.StartsWith('.') }
 
-    if (-not (Test-Path $videosDir)) {
-        Write-Host "[$($mall.Name)] No medias/videos directory - skipping" -ForegroundColor DarkGray
+    if ($hostDirs.Count -eq 0) {
+        Write-Host "[$($mall.Name)] No host directories found - skipping" -ForegroundColor DarkGray
         continue
     }
 
-    $mp4Files = Get-ChildItem -Path $videosDir -Filter *.mp4
-    if ($mp4Files.Count -eq 0) {
-        Write-Host "[$($mall.Name)] No .mp4 files found - skipping" -ForegroundColor DarkGray
-        continue
-    }
+    foreach ($host in $hostDirs) {
+        $videosDir = $host.FullName
+        $label = "$($mall.Name)/$($host.Name)"
 
-    $optimizedDir = Join-Path $videosDir "optimized"
-    if (-not (Test-Path $optimizedDir)) {
-        New-Item -ItemType Directory -Path $optimizedDir | Out-Null
-    }
+        $mp4Files = Get-ChildItem -Path $videosDir -Filter *.mp4 -File -ErrorAction SilentlyContinue
+        if ($mp4Files.Count -eq 0) {
+            Write-Host "[$label] No .mp4 files found - skipping" -ForegroundColor DarkGray
+            continue
+        }
 
-    Write-Host "[$($mall.Name)] Optimizing $($mp4Files.Count) video(s)..." -ForegroundColor Cyan
+        $optimizedDir = Join-Path $videosDir "optimized"
+        if (-not (Test-Path $optimizedDir)) {
+            New-Item -ItemType Directory -Path $optimizedDir | Out-Null
+        }
 
-    Push-Location $videosDir
-    try {
-        foreach ($file in $mp4Files) {
-            Write-Host "  Converting $($file.Name)..." -ForegroundColor Yellow
-            $outputPath = Join-Path "optimized" $file.Name
-            ffmpeg -i $file.FullName -c:v libx264 -b:v 3000k -maxrate 3000k -bufsize 6000k -profile:v main -c:a aac -b:a 128k $outputPath -y
-            if ($LASTEXITCODE -ne 0) {
-                Write-Host "  Failed to convert $($file.Name)" -ForegroundColor Red
+        Write-Host "[$label] Optimizing $($mp4Files.Count) video(s)..." -ForegroundColor Cyan
+
+        Push-Location $videosDir
+        try {
+            foreach ($file in $mp4Files) {
+                Write-Host "  Converting $($file.Name)..." -ForegroundColor Yellow
+                $outputPath = Join-Path "optimized" $file.Name
+                ffmpeg -i $file.FullName -c:v libx264 -b:v 3000k -maxrate 3000k -bufsize 6000k -profile:v main -c:a aac -b:a 128k $outputPath -y
+                if ($LASTEXITCODE -ne 0) {
+                    Write-Host "  Failed to convert $($file.Name)" -ForegroundColor Red
+                }
             }
         }
-    }
-    finally {
-        Pop-Location
-    }
+        finally {
+            Pop-Location
+        }
 
-    Write-Host "[$($mall.Name)] Done`n" -ForegroundColor Green
+        Write-Host "[$label] Done`n" -ForegroundColor Green
+    }
 }
 
-Write-Host "=== All malls optimized! ===" -ForegroundColor Green
+Write-Host "=== All hosts optimized! ===" -ForegroundColor Green
