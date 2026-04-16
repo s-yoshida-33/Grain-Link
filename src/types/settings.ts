@@ -27,4 +27,6 @@ export interface AppSettings {
   isMuted?: boolean;
   mediaDownloadSettings?: MediaDownloadSettings;
   sleepSettings?: SleepSettings;
+  /** 新API用 genreSub フィルター。未設定時は従来の genre + area フィルターを使用 */
+  genreSubFilter?: string;
 }

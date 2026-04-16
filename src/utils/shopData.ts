@@ -8,6 +8,8 @@ interface BridgeShop {
   shopNameKana?: string;
   shopNameEnglish?: string;
   genre?: string;
+  /** 新API: 統一ジャンルのサブカテゴリ（フードコート / レストラン / カフェ / スイーツ/その他） */
+  genreSub?: string;
   genreMemo?: string;
   area?: string;
   floors?: string;
@@ -88,6 +90,7 @@ export const normalizeShops = (rawData: any, apiEndpoint?: string): Shop[] => {
       description: item.description || "",
       imageUrl,
       genre: item.genre,
+      genreSub: item.genreSub,
       area: item.area,
       shopLogoThumbW640LocalPath,
       genreMemo: item.genreMemo,

@@ -4,6 +4,8 @@ import { getVersion } from '@tauri-apps/api/app';
 import { loadSettings, saveSettings } from '../utils/settings';
 import type { AppMode, SleepSettings } from '../types/settings';
 
+const GENRE_SUB_OPTIONS = ['フードコート', 'レストラン', 'カフェ', 'スイーツ/その他'] as const;
+
 interface ContextMenuProps {
   children: React.ReactNode;
 }
@@ -25,6 +27,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ children }) => {
   const [currentMode, setCurrentMode] = useState<AppMode | null>(null);
   const [isMuted, setIsMuted] = useState(false);
   const [sleepSettings, setSleepSettings] = useState<SleepSettings>(DEFAULT_SLEEP);
+  const [genreSubFilter, setGenreSubFilter] = useState<string | undefined>(undefined);
   const [appVersion, setAppVersion] = useState<string>('');
 
   const hideMenu = useCallback(() => setVisible(false), []);
@@ -41,6 +44,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ children }) => {
         setCurrentMode(settings.appMode);
         setIsMuted(settings.isMuted ?? false);
         setSleepSettings(settings.sleepSettings ?? DEFAULT_SLEEP);
+        setGenreSubFilter(settings.genreSubFilter);
         setAppVersion(version);
       } catch {
         setCurrentMode(null);
@@ -167,6 +171,20 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ children }) => {
     }
   }, [hideMenu, sleepSettings]);
 
+  // genreSub フィルターを設定・解除する
+  const changeGenreSubFilter = useCallback(async (value: string | undefined) => {
+    hideMenu();
+    try {
+      const settings = await loadSettings();
+      settings.genreSubFilter = value;
+      await saveSettings(settings);
+      setGenreSubFilter(value);
+      window.dispatchEvent(new CustomEvent('reload-settings'));
+    } catch {
+      // 保存失敗時は何もしない
+    }
+  }, [hideMenu]);
+
   // 切り替え先のモード
   const targetMode: AppMode | null = currentMode === 'VIDEO_AD' ? 'SHOP_LIST'
     : currentMode === 'SHOP_LIST' ? 'VIDEO_AD'
@@ -195,6 +213,21 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ children }) => {
     {
       label: `終了時刻: ${sleepSettings.endTime}`,
       action: changeSleepEndTime,
+      separator: true,
+    },
+    // genreSub フィルター（新API対応）
+    {
+      label: `ジャンル絞り込み: ${genreSubFilter ?? '従来（自動）'}`,
+      action: () => {},
+      disabled: true,
+    },
+    ...GENRE_SUB_OPTIONS.map((opt) => ({
+      label: `${genreSubFilter === opt ? '✓ ' : '　'}${opt}`,
+      action: () => changeGenreSubFilter(opt),
+    })),
+    {
+      label: `${!genreSubFilter ? '✓ ' : '　'}解除（従来動作）`,
+      action: () => changeGenreSubFilter(undefined),
       separator: true,
     },
     { label: '手動更新 (Releases)', action: openReleases },
