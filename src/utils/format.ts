@@ -19,7 +19,7 @@ export const formatShopName = (name: string): string => {
 export const formatGenreMemo = (genre: string): string => {
   if (!genre) return "";
   return genre
-    .split(/[・|]+/)
+    .split(/[・|\s　]+/)
     .map(s => s.trim())
     .filter(s => s.length > 0)
     .slice(0, 3)
