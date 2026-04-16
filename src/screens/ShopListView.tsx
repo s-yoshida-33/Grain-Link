@@ -24,10 +24,15 @@ export const ShopListView: React.FC<ShopListViewProps> = ({ shops, gridConfig })
   
   // 表示用ショップリストの生成
   const displaySlots = useMemo(() => {
+    const genreSubFilter = settings?.genreSubFilter;
+
     // 1. 条件に合致する店舗を抽出
-    const filteredShops = shops.filter(shop => 
-      (shop as any).genre === TARGET_GENRE && 
-      (shop as any).area === TARGET_AREA
+    //    genreSubFilter が設定されている場合は新API（genreSub）でフィルタリング
+    //    未設定の場合は従来通り genre + area でフィルタリング
+    const filteredShops = shops.filter(shop =>
+      genreSubFilter
+        ? shop.genreSub === genreSubFilter
+        : (shop as any).genre === TARGET_GENRE && (shop as any).area === TARGET_AREA
     ).sort((a, b) => {
       const numA = a.number || "";
       const numB = b.number || "";

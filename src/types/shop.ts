@@ -4,6 +4,7 @@ export interface Shop {
   description?: string;
   imageUrl?: string;
   genre?: string;
+  genreSub?: string; // 新API: 統一ジャンルのサブカテゴリ（フードコート / レストラン / カフェ / スイーツ/その他）
   area?: string;
   // 追加フィールド
   shopLogoThumbW640LocalPath?: string;
