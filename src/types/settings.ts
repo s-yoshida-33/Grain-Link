@@ -19,7 +19,7 @@ export interface SleepSettings {
 }
 
 /**
- * settings.json に保存するグローバル設定（端末レベル）
+ * settings.json に保存するグローバル設定（端末レベル）。
  * モールを切り替えても引き継がれる。
  */
 export interface GlobalSettings {

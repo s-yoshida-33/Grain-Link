@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { getVersion } from '@tauri-apps/api/app';
-import { loadSettings, saveSettings } from '../utils/settings';
+import { loadSettings, saveSettings, loadGlobalSettings, saveGlobalSettings } from '../utils/settings';
 import type { AppMode, SleepSettings } from '../types/settings';
+import { MALL_LIST, getMallName } from '../config/malls';
 
 const GENRE_SUB_OPTIONS = ['フードコート', 'レストラン', 'カフェ', 'スイーツ/その他'] as const;
 
@@ -25,6 +26,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ children }) => {
   const [visible, setVisible] = useState(false);
   const [position, setPosition] = useState<Position>({ x: 0, y: 0 });
   const [currentMode, setCurrentMode] = useState<AppMode | null>(null);
+  const [currentMallId, setCurrentMallId] = useState<string>('');
   const [isMuted, setIsMuted] = useState(false);
   const [sleepSettings, setSleepSettings] = useState<SleepSettings>(DEFAULT_SLEEP);
   const [genreSubFilter, setGenreSubFilter] = useState<string | undefined>(undefined);
@@ -43,6 +45,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ children }) => {
           getVersion().catch(() => ''),
         ]);
         setCurrentMode(settings.appMode);
+        setCurrentMallId(settings.mallId);
         setIsMuted(settings.isMuted ?? false);
         setSleepSettings(settings.sleepSettings ?? DEFAULT_SLEEP);
         setGenreSubFilter(settings.genreSubFilter);
@@ -207,6 +210,20 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ children }) => {
     }
   }, [hideMenu]);
 
+  // モール切替: globalSettings の mallId のみ更新し、対象モールの設定は触らない
+  const changeMall = useCallback(async (newMallId: string) => {
+    hideMenu();
+    if (newMallId === currentMallId) return;
+    try {
+      const global = await loadGlobalSettings();
+      await saveGlobalSettings({ ...global, mallId: newMallId });
+      setCurrentMallId(newMallId);
+      window.dispatchEvent(new CustomEvent('reload-settings'));
+    } catch {
+      // 保存失敗時は何もしない
+    }
+  }, [hideMenu, currentMallId]);
+
   // 切り替え先のモード
   const targetMode: AppMode | null = currentMode === 'VIDEO_AD' ? 'SHOP_LIST'
     : currentMode === 'SHOP_LIST' ? 'VIDEO_AD'
@@ -256,7 +273,17 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ children }) => {
       action: () => changeGenreSubFilter(undefined),
       separator: true,
     },
-    { label: '手動更新 (Releases)', action: openReleases },
+    // モール選択
+    {
+      label: `モール: ${getMallName(currentMallId)}`,
+      action: () => {},
+      disabled: true,
+    },
+    ...MALL_LIST.map((mall) => ({
+      label: `${currentMallId === mall.id ? '✓ ' : '　'}${mall.name}`,
+      action: () => changeMall(mall.id),
+    })),
+    { label: '手動更新 (Releases)', action: openReleases, separator: true },
     {
       label: `バージョン: ${appVersion ? `v${appVersion}` : '取得中…'}`,
       action: () => {},
@@ -280,8 +307,8 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ children }) => {
             color: '#f8f8f8',
             border: '1px solid #333',
             borderRadius: 4,
-            minWidth: 160,
-            maxWidth: 200,
+            minWidth: 200,
+            maxWidth: 240,
             boxShadow: '0 8px 24px rgba(0,0,0,0.35)',
             zIndex: 9999,
             overflow: 'hidden',
