@@ -110,7 +110,6 @@ struct StaticHardwareInfo {
 }
 
 static HARDWARE_CACHE: OnceLock<StaticHardwareInfo> = OnceLock::new();
-static SYS_INSTANCE: OnceLock<Mutex<System>> = OnceLock::new();
 
 fn get_hardware_info() -> &'static StaticHardwareInfo {
     HARDWARE_CACHE.get_or_init(|| {
@@ -129,7 +128,6 @@ fn get_hardware_info() -> &'static StaticHardwareInfo {
             os_version: System::os_version().unwrap_or_else(|| "Unknown".to_string()),
         };
 
-        SYS_INSTANCE.get_or_init(|| Mutex::new(sys));
         info
     })
 }
@@ -183,24 +181,18 @@ struct SystemInfoResponse {
 fn get_system_info() -> SystemInfoResponse {
     let hw = get_hardware_info();
 
-    let (cpu_usage, memory_used_mb, memory_usage_percent) = {
-        let sys_lock = SYS_INSTANCE.get_or_init(|| {
-            Mutex::new(System::new_all())
-        });
-        if let Ok(mut sys) = sys_lock.lock() {
-            sys.refresh_cpu_usage();
-            sys.refresh_memory();
-            let cpu = sys.global_cpu_usage();
-            let mem_used = sys.used_memory() / (1024 * 1024);
-            let mem_pct = if sys.total_memory() > 0 {
-                (sys.used_memory() as f64 / sys.total_memory() as f64) * 100.0
-            } else {
-                0.0
-            };
-            (cpu, mem_used, mem_pct)
-        } else {
-            (0.0, 0, 0.0)
-        }
+    let mut sys = System::new();
+    sys.refresh_cpu_all();
+    std::thread::sleep(std::time::Duration::from_millis(200));
+    sys.refresh_cpu_usage();
+    sys.refresh_memory();
+
+    let cpu_usage = sys.global_cpu_usage();
+    let memory_used_mb = sys.used_memory() / (1024 * 1024);
+    let memory_usage_percent = if sys.total_memory() > 0 {
+        (sys.used_memory() as f64 / sys.total_memory() as f64) * 100.0
+    } else {
+        0.0
     };
 
     SystemInfoResponse {
