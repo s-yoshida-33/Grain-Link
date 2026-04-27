@@ -115,6 +115,12 @@ export const VideoSignageView: React.FC<VideoSignageViewProps> = ({ shops }) => 
           }
         }
 
+        if (candidates.length === 0) {
+          logDebug('LOCAL_VIDEO', 'No video directory candidates yet, waiting for settings');
+          setPlaylist([]);
+          return;
+        }
+
         if (!pickedEntries) {
           throw new Error('No readable video directory was found');
         }
