@@ -55,10 +55,11 @@ export const ShopInfoOverlay: React.FC<ShopInfoOverlayProps> = ({ shop }) => {
   useEffect(() => {
     const processLogo = (shopLogoPath: string | undefined): string | undefined => {
       if (!shopLogoPath) return undefined;
-      const rawPath = shopLogoPath.startsWith('__LOCAL_FILE__:') 
-        ? shopLogoPath.substring('__LOCAL_FILE__:'.length) 
-        : shopLogoPath;
-      return convertFileSrc(rawPath);
+      // ローカルファイルパスのみ convertFileSrc で asset:// URL に変換。HTTPS URL はそのまま使用
+      if (shopLogoPath.startsWith('__LOCAL_FILE__:')) {
+        return convertFileSrc(shopLogoPath.substring('__LOCAL_FILE__:'.length));
+      }
+      return shopLogoPath;
     };
 
     if (activeShop === 'A' && shopA?.shopLogoThumbW640LocalPath) {

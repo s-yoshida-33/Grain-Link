@@ -19,9 +19,11 @@ interface BridgeShop {
   photo1?: string;
   photo1LocalPath?: string;
   photo2?: string;
-  photo2ThumbW640LocalPath?: string; // これを使用
+  photo2ThumbW640LocalPath?: string;
+  photo2ThumbW640?: string;
   shopLogo?: string;
   shopLogoThumbW640LocalPath?: string;
+  shopLogoThumbW640?: string;
   // 以下後方互換用
   shop_id?: string | number;
   shop_name?: string;
@@ -78,11 +80,14 @@ export const normalizeShops = (rawData: any, apiEndpoint?: string): Shop[] => {
     // ローカルパス (photo2ThumbW640LocalPath) を優先。API側の /files/shop/XXX エンドポイントが
     // 実装されていないため、Tauri の convertFileSrc() で資産URLに変換する
     const imageUrl = toDisplayPath(
-      item.photo2ThumbW640LocalPath || item.photo2 || item.image_url || item.imageUrl,
+      item.photo2ThumbW640LocalPath || item.photo2ThumbW640 || item.photo2 || item.image_url || item.imageUrl,
       apiEndpoint
     );
 
-    const shopLogoThumbW640LocalPath = toDisplayPath(item.shopLogoThumbW640LocalPath, apiEndpoint);
+    const shopLogoThumbW640LocalPath = toDisplayPath(
+      item.shopLogoThumbW640LocalPath || item.shopLogoThumbW640,
+      apiEndpoint
+    );
 
     return {
       id: item.shopId ?? item.shop_id ?? "",

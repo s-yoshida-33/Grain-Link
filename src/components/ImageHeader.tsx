@@ -15,12 +15,10 @@ export const ImageHeader: React.FC<ImageHeaderProps> = ({ imageUrl }) => {
       return;
     }
 
-    // パス処理：__LOCAL_FILE__: を除去してアセットURL化
-    const rawPath = imageUrl.startsWith('__LOCAL_FILE__:') 
-      ? imageUrl.substring('__LOCAL_FILE__:'.length) 
+    // ローカルファイルパスのみ convertFileSrc で asset:// URL に変換。HTTPS URL はそのまま使用
+    const assetUrl = imageUrl.startsWith('__LOCAL_FILE__:')
+      ? convertFileSrc(imageUrl.substring('__LOCAL_FILE__:'.length))
       : imageUrl;
-      
-    const assetUrl = convertFileSrc(rawPath);
 
     // 次のアクティブ画像の準備
     if (activeImage === 'A') {
