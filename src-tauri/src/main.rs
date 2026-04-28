@@ -187,7 +187,23 @@ fn get_system_info() -> SystemInfoResponse {
     sys.refresh_cpu_usage();
     sys.refresh_memory();
 
-    let cpu_usage = sys.global_cpu_usage();
+    let global_cpu = sys.global_cpu_usage();
+    let cpus = sys.cpus();
+    let per_cpu_values: Vec<f32> = cpus.iter().map(|c| c.cpu_usage()).collect();
+    let per_cpu_avg = if per_cpu_values.is_empty() {
+        0.0_f32
+    } else {
+        per_cpu_values.iter().sum::<f32>() / per_cpu_values.len() as f32
+    };
+
+    write_log_to_file("DEBUG", "CPU_DIAG", &format!(
+        "global={:.2}% per_cpu_avg={:.2}% cpu_count={} values={:?}",
+        global_cpu, per_cpu_avg, per_cpu_values.len(), per_cpu_values
+    ));
+
+    // per-CPU平均をフォールバックとして使用（global が 0 かつ個別CPUが非ゼロの場合）
+    let cpu_usage = if global_cpu > 0.0 { global_cpu } else { per_cpu_avg };
+
     let memory_used_mb = sys.used_memory() / (1024 * 1024);
     let memory_usage_percent = if sys.total_memory() > 0 {
         (sys.used_memory() as f64 / sys.total_memory() as f64) * 100.0
