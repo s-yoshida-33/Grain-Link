@@ -148,6 +148,8 @@ export const VideoSignageView: React.FC<VideoSignageViewProps> = ({ shops }) => 
             const hasMatchingShop = shops.some(s => {
               if (String(s.id) === nameWithoutExt) return true;
               if (Number(s.id) === Number(nameWithoutExt)) return true;
+              // 新API: shopIdがUUIDのため区画番号(number)で照合
+              if (s.number !== undefined && String(s.number) === nameWithoutExt) return true;
               return false;
             });
 
