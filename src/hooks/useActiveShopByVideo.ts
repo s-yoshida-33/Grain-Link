@@ -19,10 +19,12 @@ export const useActiveShopByVideo = (shops: Shop[], videoFileName: string) => {
     // 現在の要件では「メディア名をショップIDに設定」とのことなので、完全一致または数値変換で比較
     
     const shop = shops.find(s => {
-      // 文字列として比較
+      // 文字列として比較（旧API: 数値文字列のshopId）
       if (String(s.id) === nameWithoutExt) return true;
-      // 数値として比較 (ファイル名が "001" で IDが 1 の場合などを考慮)
+      // 数値として比較（ファイル名 "001" と ID 1 などを考慮）
       if (Number(s.id) === Number(nameWithoutExt)) return true;
+      // 区画番号で比較（新API: shopIdがUUIDになるため、動画ファイル名はnumberで命名）
+      if (s.number !== undefined && String(s.number) === nameWithoutExt) return true;
       return false;
     });
 
