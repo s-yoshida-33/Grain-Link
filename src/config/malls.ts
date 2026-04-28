@@ -5,6 +5,7 @@ export interface MallConfig {
 
 export const MALL_LIST: MallConfig[] = [
   { id: 'sakaikitahanada', name: 'イオンモール堺北花田' },
+  { id: 'development', name: '開発用' },
 ];
 
 export const getMallName = (mallId: string): string =>
