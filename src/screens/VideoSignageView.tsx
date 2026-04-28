@@ -146,10 +146,10 @@ export const VideoSignageView: React.FC<VideoSignageViewProps> = ({ shops }) => 
             const nameWithoutExt = baseName.replace(/\.[^/.]+$/, '');
 
             const hasMatchingShop = shops.some(s => {
+              // 文字列として比較（旧API: 数値文字列、新API: UUID文字列）
               if (String(s.id) === nameWithoutExt) return true;
+              // 数値として比較（ファイル名 "001" と shopId "1" などの桁違いを考慮）
               if (Number(s.id) === Number(nameWithoutExt)) return true;
-              // 新API: shopIdがUUIDのため区画番号(number)で照合
-              if (s.number !== undefined && String(s.number) === nameWithoutExt) return true;
               return false;
             });
 
