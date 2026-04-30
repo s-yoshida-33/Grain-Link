@@ -35,7 +35,7 @@ export const formatLastOrder = (openTime: string): string => {
   const match = openTime.match(/[【（(](.*?)[】）)]/);
   if (!match) return "";
   
-  let content = match[1];
+  let content = match[1].replace(/^※[\s　]*/, "");
   
   // "ラストオーダー"の直後のスペース（半角・全角問わず）を正規化して全角スペース1つにする
   // 他の箇所の半角スペースはそのまま維持する
