@@ -147,7 +147,7 @@ export const ShopCard: React.FC<ShopCardProps> = ({ shop }) => {
 
       {/* 店舗情報エリア */}
       <div className="flex-1 flex flex-col justify-center items-start w-full">
-        <div className="flex items-center gap-2 mb-1 ml-2 pt-1">
+        <div className="flex items-center gap-2 mb-1 ml-2 mr-2 pt-1 w-[calc(100%-1rem)]">
           {shop.number && (
             <span className="text-[16px] font-bold text-white bg-[#F08300] w-15 inline-block text-center py-1 rounded-[3px]">
               {shop.number}
