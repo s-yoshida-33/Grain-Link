@@ -32,7 +32,7 @@ export const formatGenreMemo = (genre: string): string => {
  */
 export const formatLastOrder = (openTime: string): string => {
   if (!openTime) return "";
-  const match = openTime.match(/[【（](.*?)[】）]/);
+  const match = openTime.match(/[【（(](.*?)[】）)]/);
   if (!match) return "";
   
   let content = match[1];
