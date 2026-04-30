@@ -17,12 +17,26 @@ export const ShopCard: React.FC<ShopCardProps> = ({ shop }) => {
   const [imageUrl, setImageUrl] = useState<string>("");
   const genreMemoContainerRef = useRef<HTMLSpanElement>(null);
   const genreMemoTextRef = useRef<HTMLSpanElement>(null);
+  const shopNameContainerRef = useRef<HTMLHeadingElement>(null);
+  const shopNameTextRef = useRef<HTMLSpanElement>(null);
   const lastOrderContainerRef = useRef<HTMLParagraphElement>(null);
   const lastOrderTextRef = useRef<HTMLSpanElement>(null);
 
   const adjustGenreMemoScale = useCallback(() => {
     const container = genreMemoContainerRef.current;
     const text = genreMemoTextRef.current;
+    if (!container || !text) return;
+    const containerWidth = container.clientWidth;
+    const textWidth = text.scrollWidth;
+    text.style.transform =
+      textWidth > containerWidth && containerWidth > 0
+        ? `scaleX(${containerWidth / textWidth})`
+        : "scaleX(1)";
+  }, []);
+
+  const adjustShopNameScale = useCallback(() => {
+    const container = shopNameContainerRef.current;
+    const text = shopNameTextRef.current;
     if (!container || !text) return;
     const containerWidth = container.clientWidth;
     const textWidth = text.scrollWidth;
@@ -50,6 +64,13 @@ export const ShopCard: React.FC<ShopCardProps> = ({ shop }) => {
     const timer = setTimeout(adjustGenreMemoScale, 100);
     return () => clearTimeout(timer);
   }, [shop?.genreMemo, adjustGenreMemoScale]);
+
+  useLayoutEffect(() => {
+    adjustShopNameScale();
+    document.fonts.ready.then(adjustShopNameScale);
+    const timer = setTimeout(adjustShopNameScale, 100);
+    return () => clearTimeout(timer);
+  }, [shop?.name, adjustShopNameScale]);
 
   useLayoutEffect(() => {
     adjustLastOrderScale();
@@ -152,7 +173,23 @@ export const ShopCard: React.FC<ShopCardProps> = ({ shop }) => {
             </span>
           )}
         </div>
-        <h3 className="text-[24px] font-bold text-brand-brown ml-2">{formatShopName(shop.name)}</h3>
+        <h3
+          ref={shopNameContainerRef}
+          className="text-[24px] font-bold text-brand-brown ml-2 mr-2 w-[calc(100%-1rem)] overflow-hidden"
+          style={{ whiteSpace: "nowrap" }}
+        >
+          <span
+            ref={shopNameTextRef}
+            style={{
+              display: "inline-block",
+              whiteSpace: "nowrap",
+              transformOrigin: "left center",
+              transform: "scaleX(1)",
+            }}
+          >
+            {formatShopName(shop.name)}
+          </span>
+        </h3>
         {shop.openTime && formatLastOrder(shop.openTime) && (
           <p
             ref={lastOrderContainerRef}
