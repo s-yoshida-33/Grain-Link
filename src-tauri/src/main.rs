@@ -178,6 +178,11 @@ struct SystemInfoResponse {
 }
 
 #[tauri::command]
+fn get_log_directory() -> Result<String, String> {
+    get_log_dir().map(|p| p.to_string_lossy().to_string())
+}
+
+#[tauri::command]
 fn get_system_info() -> SystemInfoResponse {
     let hw = get_hardware_info();
 
@@ -1012,6 +1017,7 @@ fn main() {
             download_media,
             sync_media_from_zip,
             write_log,
+            get_log_directory,
             get_system_info,
             webview_ping,
             quit_app,

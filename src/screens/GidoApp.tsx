@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useAppSettings } from '../hooks/useAppSettings';
 import { useShopChangeDetection } from '../hooks/useShopChangeDetection';
+import { useBridgeRegistration } from '../hooks/useBridgeRegistration';
 import { VideoSignageView } from './VideoSignageView';
 import { ShopListView } from './ShopListView';
 import { PatchScreen } from './PatchScreen';
@@ -13,6 +14,12 @@ import type { Shop } from '../types/shop';
 export const GidoApp: React.FC = () => {
   const { settings, loading: settingsLoading } = useAppSettings();
   const [shops, setShops] = useState<Shop[]>([]);
+
+  useBridgeRegistration(
+    settings?.mallId ?? '',
+    settings?.hostname ?? '',
+    !settingsLoading && !!(settings?.mallId),
+  );
   const [bootComplete, setBootComplete] = useState(false);
   // const [isSseConnected, setIsSseConnected] = useState(false);
 
