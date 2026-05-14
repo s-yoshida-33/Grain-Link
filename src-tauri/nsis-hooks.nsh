@@ -4,7 +4,7 @@
   ExecWait 'schtasks /create /tn "Grain Link Auto Start" /tr "\"$INSTDIR\grain-link.exe\"" /sc onlogon /delay 0001:30 /f'
 
   ; --- Scheduled task for daily reboot at 03:00 ---
-  ExecWait 'schtasks /create /tn "Grain Link Daily Reboot" /tr "shutdown /r /t 0" /sc daily /st 03:00 /f'
+  ExecWait 'schtasks /create /tn "Grain Link Daily Reboot" /tr "shutdown /r /f /t 0" /sc daily /st 03:00 /f'
 !macroend
 
 !macro NSIS_HOOK_POSTUNINSTALL
