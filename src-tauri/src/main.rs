@@ -999,51 +999,6 @@ fn install_panic_hook() {
 
 // ── main ─────────────────────────────────────────────────────────
 
-// ---------------------------------------------------------------------------
-// Scheduled 3 AM restart: force-exit to clear network cache and zombie processes
-// ---------------------------------------------------------------------------
-
-fn start_scheduled_restart() {
-    std::thread::spawn(|| {
-        loop {
-            let now = Local::now();
-            let today_3am = now.date_naive().and_hms_opt(3, 0, 0).unwrap();
-            let next_3am = if now.time() < chrono::NaiveTime::from_hms_opt(3, 0, 0).unwrap() {
-                today_3am
-                    .and_local_timezone(Local)
-                    .earliest()
-                    .unwrap_or_else(|| {
-                        (today_3am + chrono::Duration::days(1))
-                            .and_local_timezone(Local)
-                            .unwrap()
-                    })
-            } else {
-                (today_3am + chrono::Duration::days(1))
-                    .and_local_timezone(Local)
-                    .earliest()
-                    .unwrap_or_else(|| {
-                        (today_3am + chrono::Duration::days(2))
-                            .and_local_timezone(Local)
-                            .unwrap()
-                    })
-            };
-            let wait = (next_3am - now)
-                .to_std()
-                .unwrap_or(std::time::Duration::from_secs(3600));
-            write_log_to_file(
-                "INFO", "SYSTEM",
-                &format!("Scheduled restart armed: next 03:00 in {:.0}s", wait.as_secs_f64()),
-            );
-            std::thread::sleep(wait);
-            let msg = "Scheduled 03:00 restart: force-exit to clear network cache and zombie processes";
-            write_log_to_file("INFO", "SYSTEM", msg);
-            send_slack_notification("INFO", "SYSTEM", msg, false, "scheduled_restart_03am");
-            FORCE_QUIT.store(true, Ordering::Relaxed);
-            std::process::exit(0);
-        }
-    });
-}
-
 fn main() {
     install_panic_hook();
     cleanup_old_logs(30);
@@ -1074,7 +1029,6 @@ fn main() {
         .setup(|app| {
             setup_system_tray(app)?;
             start_webview_watchdog(app.handle().clone());
-            start_scheduled_restart();
 
             #[cfg(target_os = "windows")]
             {
