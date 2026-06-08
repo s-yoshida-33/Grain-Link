@@ -336,6 +336,19 @@ export const LocalVideoPlayer: React.FC<LocalVideoPlayerProps> = ({
     }
   }, [advanceToNext]);
 
+  // Near-end detection via timeupdate — more reliable than 'ended' on embedded Chromium.
+  // Fires advanceToNext ~100ms before the video's natural end point.
+  const handleTimeUpdate = useCallback((e: React.SyntheticEvent<HTMLVideoElement>) => {
+    const video = e.currentTarget;
+    const isActive =
+      (activePlayerRef.current === 'A' && video === videoRefA.current) ||
+      (activePlayerRef.current === 'B' && video === videoRefB.current);
+    if (!isActive || !video.duration) return;
+    if (video.currentTime >= video.duration - 0.1) {
+      advanceToNext();
+    }
+  }, [advanceToNext]);
+
   // Stalled handler
   const handleStalled = useCallback((e: React.SyntheticEvent<HTMLVideoElement>) => {
     const video = e.currentTarget;
@@ -424,9 +437,9 @@ export const LocalVideoPlayer: React.FC<LocalVideoPlayerProps> = ({
         }
       }
 
-      // Fallback: duration exceeded without ended event
+      // Last-resort fallback: timeupdate and ended both missed the end
       if (video.duration && !video.paused && video.currentTime >= video.duration) {
-        logWarn('LOCAL_VIDEO', 'Duration exceeded without ended event, forcing advance', {
+        logDebug('LOCAL_VIDEO', 'Watchdog fallback: duration exceeded without ended/timeupdate', {
           file: fileName,
           currentTime: video.currentTime?.toFixed(2),
           duration: video.duration?.toFixed(2),
@@ -456,10 +469,11 @@ export const LocalVideoPlayer: React.FC<LocalVideoPlayerProps> = ({
         muted={muted}
         playsInline
         onEnded={handleEnded}
+        onTimeUpdate={handleTimeUpdate}
         onError={handleError}
         onStalled={handleStalled}
       />
-      
+
       {/* Video Player B */}
       <video
         ref={videoRefB}
@@ -472,6 +486,7 @@ export const LocalVideoPlayer: React.FC<LocalVideoPlayerProps> = ({
         muted={muted}
         playsInline
         onEnded={handleEnded}
+        onTimeUpdate={handleTimeUpdate}
         onError={handleError}
         onStalled={handleStalled}
       />
