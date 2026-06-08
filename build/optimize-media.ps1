@@ -92,7 +92,21 @@ foreach ($hostDir in $hostDirs) {
         foreach ($file in $mp4Files) {
             Write-Host "  Converting $($file.Name)..." -ForegroundColor Yellow
             $outputPath = Join-Path "optimized" $file.Name
-            ffmpeg -i $file.FullName -c:v libx264 -b:v 3000k -maxrate 3000k -bufsize 6000k -profile:v main -c:a aac -b:a 128k $outputPath -y
+            ffmpeg -i $file.FullName `
+              -c:v libx264 `
+              -preset slow `
+              -crf 23 `
+              -maxrate 3000k `
+              -bufsize 6000k `
+              -profile:v main `
+              -level 4.0 `
+              -pix_fmt yuv420p `
+              -movflags +faststart `
+              -c:a aac `
+              -b:a 128k `
+              -ac 2 `
+              -ar 44100 `
+              $outputPath -y
             if ($LASTEXITCODE -ne 0) {
                 Write-Host "  Failed to convert $($file.Name)" -ForegroundColor Red
             }
