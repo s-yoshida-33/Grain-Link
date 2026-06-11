@@ -18,7 +18,9 @@ interface BridgeShop {
   description?: string;
   photo1?: string;
   photo1LocalPath?: string;
+  photo1ThumbW640LocalPath?: string;
   photo2?: string;
+  photo2LocalPath?: string;
   photo2ThumbW640LocalPath?: string;
   photo2ThumbW640?: string;
   shopLogo?: string;
@@ -80,9 +82,8 @@ export const normalizeShops = (rawData: any, apiEndpoint?: string): Shop[] => {
     // ローカルパス (photo2ThumbW640LocalPath) を優先。API側の /files/shop/XXX エンドポイントが
     // 実装されていないため、Tauri の convertFileSrc() で資産URLに変換する
     const imageUrl = toDisplayPath(
-      item.photo2ThumbW640LocalPath || item.photo2ThumbW640 || item.photo2 ||
-      item.photo1LocalPath || item.photo1 ||
-      item.image_url || item.imageUrl,
+      item.photo2ThumbW640LocalPath || item.photo2LocalPath ||
+      item.photo1ThumbW640LocalPath || item.photo1LocalPath,
       apiEndpoint
     );
 
