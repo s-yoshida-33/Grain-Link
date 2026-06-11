@@ -11,16 +11,15 @@ export const ImageHeader: React.FC<ImageHeaderProps> = ({ imageUrl }) => {
   const [activeImage, setActiveImage] = useState<'A' | 'B'>('A');
 
   useEffect(() => {
-    if (!imageUrl) {
-      return;
-    }
+    // imageUrl が空の場合は undefined として扱い、バッファを切り替えてクリアする。
+    // early return すると前のショップの画像が残り続けるため行わない。
+    const assetUrl = imageUrl
+      ? (imageUrl.startsWith('__LOCAL_FILE__:')
+          ? convertFileSrc(imageUrl.substring('__LOCAL_FILE__:'.length))
+          : imageUrl)
+      : undefined;
 
-    // ローカルファイルパスのみ convertFileSrc で asset:// URL に変換。HTTPS URL はそのまま使用
-    const assetUrl = imageUrl.startsWith('__LOCAL_FILE__:')
-      ? convertFileSrc(imageUrl.substring('__LOCAL_FILE__:'.length))
-      : imageUrl;
-
-    // 次のアクティブ画像の準備
+    // 次のアクティブ画像の準備（A/B ダブルバッファリング）
     if (activeImage === 'A') {
       setImageB(assetUrl);
       setActiveImage('B');
@@ -28,7 +27,7 @@ export const ImageHeader: React.FC<ImageHeaderProps> = ({ imageUrl }) => {
       setImageA(assetUrl);
       setActiveImage('A');
     }
-    
+
     // imageUrl が変わった時だけ実行（activeImage を依存配列から削除）
   }, [imageUrl]);
 
