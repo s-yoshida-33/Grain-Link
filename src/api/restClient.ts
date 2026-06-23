@@ -109,7 +109,7 @@ export const fetchMediaDownloadStatusFromApi = async (mallId: string): Promise<{
 export const fetchMediaVersionFromS3 = async (mallId: string, hostname: string): Promise<{ zip: string | null; updated_at: string | null }> => {
   try {
     const { fetch: tauriFetch } = await import('@tauri-apps/plugin-http');
-    const url = `https://dl.tti.ninja/grain-link/medias/videos/${mallId}/${hostname}/latest.json?t=${Date.now()}`;
+    const url = `https://dl.tti.ninja/grain-link/medias/${mallId}/videos/${hostname}/latest.json?t=${Date.now()}`;
 
     const response = await tauriFetch(url, {
       headers: {

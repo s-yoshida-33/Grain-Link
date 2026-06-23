@@ -12,9 +12,9 @@ export interface MediaSyncStatus {
 }
 
 const mediaMetaPath = (mallId: string, hostname: string) =>
-  `medias/videos/${mallId}/${hostname}/media-meta.json`;
+  `medias/${mallId}/videos/${hostname}/media-meta.json`;
 const mediaVideosDir = (mallId: string, hostname: string) =>
-  `medias/videos/${mallId}/${hostname}`;
+  `medias/${mallId}/videos/${hostname}`;
 
 /**
  * Automatically checks for media updates on mount and downloads if needed.
@@ -138,7 +138,7 @@ export const useMediaSync = () => {
         return;
       }
 
-      const mediaZipUrl = `https://dl.tti.ninja/grain-link/medias/videos/${mallId}/${hostname}/${remoteVersion.zip}`;
+      const mediaZipUrl = `https://dl.tti.ninja/grain-link/medias/${mallId}/videos/${hostname}/${remoteVersion.zip}`;
       logInfo('BOOT', `${isFirstBoot ? 'First boot' : 'Found media update'}, downloading from: ${mediaZipUrl}`);
       setMediaStatus({ status: 'downloading', progress: 0, message: 'メディアデータをダウンロード中…' });
 

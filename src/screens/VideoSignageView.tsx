@@ -85,13 +85,13 @@ export const VideoSignageView: React.FC<VideoSignageViewProps> = ({ shops }) => 
           });
         }
 
-        // 3) Local (AppLocalData) 配下の標準パス: medias/videos/{mallId}/{hostname}
+        // 3) Local (AppLocalData) 配下の標準パス: medias/{mallId}/videos/{hostname}
         const hostname = settings?.hostname ?? '';
         const localDir = await appLocalDataDir();
         if (hostname) {
-          const localTarget = await join(localDir, 'medias', 'videos', mallId, hostname);
+          const localTarget = await join(localDir, 'medias', mallId, 'videos', hostname);
           candidates.push({
-            label: `AppLocalData/medias/videos/${mallId}/${hostname}`,
+            label: `AppLocalData/medias/${mallId}/videos/${hostname}`,
             dirPath: localTarget,
             entries: readDir(localTarget),
           });
