@@ -231,6 +231,26 @@ fn get_mall_id_from_settings() -> String {
     }
 }
 
+fn get_hostname_from_settings() -> String {
+    let settings_path = match dirs::data_local_dir() {
+        Some(d) => d.join("com.tti.grain-link").join("settings.json"),
+        None => return "unknown".to_string(),
+    };
+    match fs::read_to_string(&settings_path) {
+        Ok(content) => {
+            serde_json::from_str::<serde_json::Value>(&content)
+                .ok()
+                .and_then(|v| v.get("hostname").and_then(|h| h.as_str().map(String::from)))
+                .unwrap_or_else(|| "unknown".to_string())
+        }
+        Err(_) => "unknown".to_string(),
+    }
+}
+
+fn get_computer_name() -> String {
+    System::host_name().unwrap_or_else(|| "unknown".to_string())
+}
+
 fn send_slack_notification(level: &str, tag: &str, message: &str, is_recovery: bool, context_str: &str) {
     let webhook_url = match std::env::var("SLACK_WEBHOOK_URL") {
         Ok(url) if !url.is_empty() => url,
@@ -244,9 +264,8 @@ fn send_slack_notification(level: &str, tag: &str, message: &str, is_recovery: b
     };
 
     let app_version = env!("CARGO_PKG_VERSION");
-    let hostname = hostname::get()
-        .map(|h| h.to_string_lossy().to_string())
-        .unwrap_or_else(|_| "unknown".to_string());
+    let hostname = get_hostname_from_settings();
+    let computer_name = get_computer_name();
     let mall_id = get_mall_id_from_settings();
 
     let ctx_line = if context_str.is_empty() {
@@ -257,7 +276,7 @@ fn send_slack_notification(level: &str, tag: &str, message: &str, is_recovery: b
 
     let payload = serde_json::json!({
         "text": format!(
-            "*{title}*\n*Level*: {level}\n*Scope*: {tag}\n*App*: Grain Link\n*Version*: {app_version}\n*Mall*: {mall_id}\n*Host*: {hostname}\n*Message*: {message}{ctx_line}"
+            "*{title}*\n*Level*: {level}\n*Scope*: {tag}\n*App*: Grain Link\n*Version*: {app_version}\n*Mall*: {mall_id}\n*Host*: {hostname}\n*Computer*: {computer_name}\n*Message*: {message}{ctx_line}"
         )
     });
 
