@@ -2,9 +2,9 @@
 # Usage: powershell -ExecutionPolicy Bypass -File .\build\compress-media.ps1 -MallId "sakaikitahanada" [-HostName "3-WMT-55-01"]
 # Omit -HostName to compress and upload all host directories under the specified mall.
 #
-# Source layout  : medias/videos/{mallId}/{hostName}/optimized/  (fallback: medias/videos/{mallId}/{hostName}/)
+# Source layout  : medias/{mallId}/videos/{hostName}/optimized/  (fallback: medias/{mallId}/videos/{hostName}/)
 # Release output : release/{mallId}/{hostName}/video-{timestamp}.zip + latest.json
-# S3 path        : s3://tti-distribution/public/grain-link/medias/videos/{mallId}/{hostName}/
+# S3 path        : s3://tti-distribution/public/grain-link/medias/{mallId}/videos/{hostName}/
 
 param(
     [string]$MallId = "",
@@ -39,7 +39,7 @@ if ([string]::IsNullOrWhiteSpace($HostName)) {
 }
 
 # Resolve target host directories
-$mallVideosPath = Join-Path $rootDir "medias\videos\$MallId"
+$mallVideosPath = Join-Path $rootDir "medias\$MallId\videos"
 if (-not (Test-Path $mallVideosPath)) {
     Write-Host "Error: Mall directory not found: $mallVideosPath" -ForegroundColor Red
     exit 1
@@ -83,7 +83,7 @@ function Compress-Host {
     $zipFileName = "video-$today.zip"
     $zipPath     = Join-Path $outputDir $zipFileName
     $versionPath = Join-Path $outputDir "latest.json"
-    $s3Base      = "s3://tti-distribution/public/grain-link/medias/videos/$MallId/$hn"
+    $s3Base      = "s3://tti-distribution/public/grain-link/medias/$MallId/videos/$hn"
 
     # Select source: optimized/ if it has video files, otherwise fallback
     if ((Test-Path $sourceDir) -and (Get-ChildItem -Path $sourceDir -File -ErrorAction SilentlyContinue | Where-Object { $_.Extension -match '\.(mp4|webm|mov)$' }).Count -gt 0) {
@@ -136,7 +136,7 @@ function Compress-Host {
     [System.IO.File]::WriteAllText($versionPath, $versionJson, [System.Text.Encoding]::UTF8)
 
     Write-Host "  Generated latest.json: zip=$zipFileName, updated_at=$updatedAt" -ForegroundColor Green
-    Write-Host "  -> https://dl.tti.ninja/public/grain-link/medias/videos/$MallId/$hn/" -ForegroundColor Gray
+    Write-Host "  -> https://dl.tti.ninja/public/grain-link/medias/$MallId/videos/$hn/" -ForegroundColor Gray
 
     # Auto-upload via AWS CLI if available
     if (Get-Command aws -ErrorAction SilentlyContinue) {

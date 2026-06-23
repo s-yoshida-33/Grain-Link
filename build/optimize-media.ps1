@@ -1,6 +1,6 @@
 # build/optimize-media.ps1
 # Local media video optimization script
-# Optimizes .mp4 files in medias/videos/{mallId}/{hostName}/ using ffmpeg and saves to optimized/
+# Optimizes .mp4 files in medias/{mallId}/videos/{hostName}/ using ffmpeg and saves to optimized/
 #
 # Usage: powershell -ExecutionPolicy Bypass -File .\build\optimize-media.ps1 -MallId "sakaikitahanada" [-HostName "3-WMT-55-01"]
 # Omit -HostName to process all host directories under the specified mall.
@@ -19,13 +19,6 @@ $OutputEncoding = [System.Text.Encoding]::UTF8
 $ErrorActionPreference = "Stop"
 
 $rootDir = Split-Path -Parent $PSScriptRoot
-$mediasVideosRoot = Join-Path $rootDir "medias\videos"
-
-if (-not (Test-Path $mediasVideosRoot)) {
-    Write-Host "medias/videos directory not found: $mediasVideosRoot" -ForegroundColor Red
-    exit 1
-}
-
 # Require MallId
 if ([string]::IsNullOrWhiteSpace($MallId)) {
     Write-Host "Mall ID (e.g. sakaikitahanada): " -NoNewline
@@ -42,10 +35,10 @@ if ([string]::IsNullOrWhiteSpace($HostName)) {
     $HostName = Read-Host
 }
 
-# Resolve mall directory
-$mallPath = Join-Path $mediasVideosRoot $MallId
+# Resolve mall/videos directory
+$mallPath = Join-Path $rootDir "medias\$MallId\videos"
 if (-not (Test-Path $mallPath)) {
-    Write-Host "Mall directory not found: $mallPath" -ForegroundColor Red
+    Write-Host "Mall videos directory not found: $mallPath" -ForegroundColor Red
     exit 1
 }
 
