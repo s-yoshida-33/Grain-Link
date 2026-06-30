@@ -1,29 +1,35 @@
 import React, { useState, useEffect } from 'react';
+import { convertFileSrc } from '@tauri-apps/api/core';
 
 interface ImageHeaderProps {
   imageUrl?: string;
 }
 
 export const ImageHeader: React.FC<ImageHeaderProps> = ({ imageUrl }) => {
-  // ダブルバッファリング用のステート
-  const [imageA, setImageA] = useState<string | undefined>(imageUrl);
+  const [imageA, setImageA] = useState<string | undefined>(undefined);
   const [imageB, setImageB] = useState<string | undefined>(undefined);
   const [activeImage, setActiveImage] = useState<'A' | 'B'>('A');
 
   useEffect(() => {
-    // 画像URLが変わった場合、非アクティブな方にセットして切り替える
-    const currentActiveUrl = activeImage === 'A' ? imageA : imageB;
-    
-    if (imageUrl !== currentActiveUrl) {
-      if (activeImage === 'A') {
-        setImageB(imageUrl);
-        setActiveImage('B');
-      } else {
-        setImageA(imageUrl);
-        setActiveImage('A');
-      }
+    // imageUrl が空の場合は undefined として扱い、バッファを切り替えてクリアする。
+    // early return すると前のショップの画像が残り続けるため行わない。
+    const assetUrl = imageUrl
+      ? (imageUrl.startsWith('__LOCAL_FILE__:')
+          ? convertFileSrc(imageUrl.substring('__LOCAL_FILE__:'.length))
+          : imageUrl)
+      : undefined;
+
+    // 次のアクティブ画像の準備（A/B ダブルバッファリング）
+    if (activeImage === 'A') {
+      setImageB(assetUrl);
+      setActiveImage('B');
+    } else {
+      setImageA(assetUrl);
+      setActiveImage('A');
     }
-  }, [imageUrl, activeImage, imageA, imageB]);
+
+    // imageUrl が変わった時だけ実行（activeImage を依存配列から削除）
+  }, [imageUrl]);
 
   const renderImage = (src: string | undefined, isActive: boolean) => {
     return (

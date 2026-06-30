@@ -1,7 +1,12 @@
 {
-  "appMode": "SHOP_LIST",
+  "appMode": "VIDEO_AD",
   "mallId": "sakaikitahanada",
   "apiEndpoint": "http://localhost:8090/api/events",
   "shopListGrid": { "rows": 4, "cols": 3 },
-  "isMuted": false
+  "isMuted": false,
+  "sleepSettings": {
+    "enabled": false,
+    "startTime": "10:00",
+    "endTime": "21:00"
+  }
 }
