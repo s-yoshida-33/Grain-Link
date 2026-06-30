@@ -13,11 +13,17 @@ export const formatShopName = (name: string): string => {
 
 /**
  * ジャンルメモを整形する
- * 例: "たこ焼き・焼きそば" -> "たこ焼き / 焼きそば"
+ * 区切り文字（・ または |）で分割し、最大3件を " / " で結合する
+ * 例: "たこ焼き・焼きそば・お好み焼き・ソース" -> "たこ焼き / 焼きそば / お好み焼き"
  */
 export const formatGenreMemo = (genre: string): string => {
   if (!genre) return "";
-  return genre.replace(/・/g, " / ");
+  return genre
+    .split(/[・|\s　]+/)
+    .map(s => s.trim())
+    .filter(s => s.length > 0)
+    .slice(0, 3)
+    .join(" / ");
 };
 
 /**
@@ -26,10 +32,10 @@ export const formatGenreMemo = (genre: string): string => {
  */
 export const formatLastOrder = (openTime: string): string => {
   if (!openTime) return "";
-  const match = openTime.match(/[【（](.*?)[】）]/);
+  const match = openTime.match(/[【（(](.*?)[】）)]/);
   if (!match) return "";
   
-  let content = match[1];
+  let content = match[1].replace(/^※[\s　]*/, "");
   
   // "ラストオーダー"の直後のスペース（半角・全角問わず）を正規化して全角スペース1つにする
   // 他の箇所の半角スペースはそのまま維持する

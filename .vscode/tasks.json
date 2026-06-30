@@ -1,0 +1,47 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Tauri Build Signed",
+      "type": "shell",
+      "command": "powershell",
+      "args": [
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "./build/sign-and-build.ps1"
+      ],
+      "options": {
+        "env": {
+          "TAURI_SIGNING_PASSWORD_OVERRIDE": "zL9#pQ2$mN5&vX1*rT8@kY4!uB"
+        }
+      },
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      }
+    },
+    {
+      "label": "Tauri Release",
+      "type": "shell",
+      "command": "powershell",
+      "args": [
+        "-ExecutionPolicy",
+        "Bypass",
+        "-Command",
+        "npm run tauri:build:signed; powershell -ExecutionPolicy Bypass -File ./build/manage-release.ps1"
+      ],
+      "options": {
+        "env": {
+          "TAURI_SIGNING_PASSWORD_OVERRIDE": "zL9#pQ2$mN5&vX1*rT8@kY4!uB"
+        }
+      },
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      }
+    }
+  ]
+}

@@ -8,6 +8,8 @@ interface BridgeShop {
   shopNameKana?: string;
   shopNameEnglish?: string;
   genre?: string;
+  /** 新API: 統一ジャンルのサブカテゴリ（フードコート / レストラン / カフェ / スイーツ/その他） */
+  genreSub?: string;
   genreMemo?: string;
   area?: string;
   floors?: string;
@@ -16,10 +18,14 @@ interface BridgeShop {
   description?: string;
   photo1?: string;
   photo1LocalPath?: string;
+  photo1ThumbW640LocalPath?: string;
   photo2?: string;
-  photo2LocalPath?: string; // これを使用
+  photo2LocalPath?: string;
+  photo2ThumbW640LocalPath?: string;
+  photo2ThumbW640?: string;
   shopLogo?: string;
-  shopLogoLocalPath?: string;
+  shopLogoThumbW640LocalPath?: string;
+  shopLogoThumbW640?: string;
   // 以下後方互換用
   shop_id?: string | number;
   shop_name?: string;
@@ -27,8 +33,41 @@ interface BridgeShop {
   imageUrl?: string;
 }
 
+const isAbsoluteFilePath = (p: string) => /^[a-zA-Z]:[\\/]/.test(p) || p.startsWith('\\');
+
+// 相対パスなら API ベースを付与
+const toDisplayPath = (rawPath?: string, apiEndpoint?: string): string => {
+  if (!rawPath) return "";
+
+  // HTTP/HTTPS はそのまま
+  if (/^https?:\/\//i.test(rawPath)) return rawPath;
+
+  // 区切りをスラッシュに統一
+  const normalizedPath = rawPath.replace(/\\/g, '/');
+
+  // file:// はそのまま
+  if (/^file:\/\//i.test(normalizedPath)) return normalizedPath;
+
+  // data: はそのまま
+  if (/^data:/i.test(normalizedPath)) return normalizedPath;
+
+  // 絶対ファイルパスなら marker をつけて返す (コンポーネント側で処理)
+  if (isAbsoluteFilePath(normalizedPath)) {
+    return `__LOCAL_FILE__:${normalizedPath}`;
+  }
+
+  // 相対パスなら API ベースを付与
+  if (apiEndpoint) {
+    const cleanBase = apiEndpoint.replace(/\/api\/events$/, '').replace(/\/+$/, '');
+    const cleanPath = normalizedPath.startsWith('/') ? normalizedPath : `/${normalizedPath}`;
+    return `${cleanBase}${cleanPath}`;
+  }
+
+  return "";
+};
+
 // データ正規化関数
-export const normalizeShops = (rawData: any): Shop[] => {
+export const normalizeShops = (rawData: any, apiEndpoint?: string): Shop[] => {
   let list: BridgeShop[] = [];
   
   if (Array.isArray(rawData)) {
@@ -40,35 +79,31 @@ export const normalizeShops = (rawData: any): Shop[] => {
   }
 
   return list.map(item => {
-    // 画像パスの解決: ローカルパスを file:// URL に変換
-    // Electron (WebSecurity: false) 環境下でのみ有効
-    let imageUrl = "";
-    if (item.photo2LocalPath) {
-        // Windowsパスのバックスラッシュをスラッシュに変換
-        imageUrl = `file:///${item.photo2LocalPath.replace(/\\/g, '/')}`;
-    } else if (item.photo2) {
-        imageUrl = item.photo2;
-    } else {
-        imageUrl = item.image_url ?? item.imageUrl ?? "";
-    }
-    
-    // ロゴパスの解決
-    let shopLogoLocalPath = "";
-    if (item.shopLogoLocalPath) {
-        shopLogoLocalPath = `file:///${item.shopLogoLocalPath.replace(/\\/g, '/')}`;
-    }
+    // ローカルパス (photo2ThumbW640LocalPath) を優先。API側の /files/shop/XXX エンドポイントが
+    // 実装されていないため、Tauri の convertFileSrc() で資産URLに変換する
+    const imageUrl = toDisplayPath(
+      item.photo2ThumbW640LocalPath || item.photo2LocalPath ||
+      item.photo1ThumbW640LocalPath || item.photo1LocalPath,
+      apiEndpoint
+    );
+
+    const shopLogoThumbW640LocalPath = toDisplayPath(
+      item.shopLogoThumbW640LocalPath || item.shopLogoThumbW640,
+      apiEndpoint
+    );
 
     return {
-        id: item.shopId ?? item.shop_id ?? "",
-        name: item.shopName ?? item.shop_name ?? "",
-        description: item.description || "",
-        imageUrl: imageUrl,
-        genre: item.genre,
-        area: item.area,
-        shopLogoLocalPath: shopLogoLocalPath,
-        genreMemo: item.genreMemo,
-        number: item.number,
-        openTime: item.openTime,
+      id: item.shopId ?? item.shop_id ?? "",
+      name: item.shopName ?? item.shop_name ?? "",
+      description: item.description || "",
+      imageUrl,
+      genre: item.genre,
+      genreSub: item.genreSub,
+      area: item.area,
+      shopLogoThumbW640LocalPath,
+      genreMemo: item.genreMemo,
+      number: item.number,
+      openTime: item.openTime,
     };
   });
 };

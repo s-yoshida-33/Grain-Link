@@ -3,12 +3,20 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 
 export default defineConfig({
-  base: './', 
   plugins: [react(), tailwindcss()],
+  clearScreen: false,
   server: {
+    port: 1420,
+    strictPort: true,
     // ショップAPI連携用プロキシ設定（Bridge API: 8090）
     proxy: {
       "/api":  { target: "http://localhost:8090", changeOrigin: true },
     },
   },
+  envPrefix: ["VITE_", "TAURI_"],
+  build: {
+    target: process.env.TAURI_PLATFORM == "windows" ? "chrome105" : "safari13",
+    minify: !process.env.TAURI_DEBUG ? "esbuild" : false,
+    sourcemap: !!process.env.TAURI_DEBUG,
+  }
 });

@@ -1,8 +1,8 @@
 tmp/
+medias/
 node_modules/
 dist/
 release/
-build/
 .DS_Store
-*.log
-src-tauri/
+*.logs
+src-tauri/target/

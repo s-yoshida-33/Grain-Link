@@ -1,16 +1,26 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useAppSettings } from '../hooks/useAppSettings';
+import { useShopChangeDetection } from '../hooks/useShopChangeDetection';
+import { useBridgeRegistration } from '../hooks/useBridgeRegistration';
 import { VideoSignageView } from './VideoSignageView';
 import { ShopListView } from './ShopListView';
+import { PatchScreen } from './PatchScreen';
 import { sseClient } from '../api/sseClient';
 import { fetchShopsFromApi } from '../api/restClient';
-import { normalizeShops, generateMockShops } from '../utils/shopData';
+import { generateMockShops } from '../utils/shopData';
 import { logInfo, logWarn } from '../logs/logging';
 import type { Shop } from '../types/shop';
 
 export const GidoApp: React.FC = () => {
   const { settings, loading: settingsLoading } = useAppSettings();
   const [shops, setShops] = useState<Shop[]>([]);
+
+  useBridgeRegistration(
+    settings?.mallId ?? '',
+    settings?.hostname ?? '',
+    !settingsLoading && !!(settings?.mallId),
+  );
+  const [bootComplete, setBootComplete] = useState(false);
   // const [isSseConnected, setIsSseConnected] = useState(false);
 
   // ショップデータをロードする関数
@@ -55,23 +65,24 @@ export const GidoApp: React.FC = () => {
       sseClient.on('status_change', ({ status }) => {
         // setIsSseConnected(status === 'connected');
         logInfo('DATA_SYNC', 'SSE Status changed', { status });
+
+        if (status === 'connected') {
+          logInfo('DATA_SYNC', 'Bridge is ready. Retrying REST API fetch...');
+          loadShops();
+        }
       });
 
-      // 'shops' イベント: JSONデータを直接反映
-      sseClient.on('shops', (data) => {
-        logInfo('DATA_SYNC', 'Received "shops" event via SSE', {
-          dataSize: JSON.stringify(data).length
-        });
-        const normalized = normalizeShops(data);
-        loadShops(normalized);
+      // 分離パターン: SSEは更新通知のみ。データはREST経由で取得する。
+      sseClient.on('shops', () => {
+        logInfo('DATA_SYNC', 'Shop update signal received via SSE, fetching from REST');
+        loadShops();
       });
 
-      // 'update' イベント: REST API再取得
       sseClient.on('update', () => {
-         logInfo('DATA_SYNC', 'Received "update" event via SSE - Reloading from API');
-         loadShops();
+        logInfo('DATA_SYNC', 'Update signal received via SSE, fetching from REST');
+        loadShops();
       });
-      
+
       // エンドポイントが設定されていれば接続
       if (settings.apiEndpoint) {
         await sseClient.connect(settings.apiEndpoint);
@@ -85,15 +96,40 @@ export const GidoApp: React.FC = () => {
     };
   }, [settings, loadShops]);
 
+  // 右クリックリロードイベントのリスナー
+  useEffect(() => {
+    const handleReloadCurrentView = () => {
+      logInfo('UI_NAVIGATION', 'Reload event triggered via context menu');
+      loadShops();
+    };
+
+    window.addEventListener('reload-current-view', handleReloadCurrentView);
+
+    return () => {
+      window.removeEventListener('reload-current-view', handleReloadCurrentView);
+    };
+  }, [loadShops]);
+
+  // ショップリストの変化（追加・削除）を検出して Slack 通知
+  const shopChangeItems = useMemo(
+    () => shops.map(s => ({ id: String(s.id), name: s.name })),
+    [shops],
+  );
+  useShopChangeDetection(shopChangeItems, settings?.mallId ?? '');
+
   if (settingsLoading || !settings) {
     return <div className="flex items-center justify-center h-screen">Loading settings...</div>;
+  }
+
+  if (!bootComplete) {
+    return <PatchScreen onComplete={() => setBootComplete(true)} />;
   }
 
   // 設定に応じて表示モード切り替え
   return (
     <div className="w-full h-full relative">
        {/* デバッグ用ステータス表示 (必要なら削除) */}
-       {/* 
+       {/*
        <div className="absolute top-0 right-0 p-2 bg-black/50 text-white text-xs z-50">
           Mode: {settings.appMode} | SSE: {isSseConnected ? 'OK' : 'Disconnected'}
        </div>
