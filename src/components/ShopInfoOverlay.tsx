@@ -75,13 +75,8 @@ export const ShopInfoOverlay: React.FC<ShopInfoOverlayProps> = ({ shop }) => {
 
     return (
     <div 
-<<<<<<< HEAD
-      className="absolute top-0 left-0 w-full h-full flex flex-col items-center justify-start p-8 text-center text-[#4b2c20] transition-opacity duration-1000 ease-in-out"
-      style={{ ...containerStyle, opacity: isActive ? 1 : 0, zIndex: isActive ? 2 : 1 }}
-=======
       className="absolute top-0 left-0 w-full text-center text-[#4b2c20] transition-opacity duration-1000 ease-in-out"
       style={{ ...containerStyle, height: `${AREA_HEIGHT}px`, opacity: isActive ? 1 : 0, zIndex: isActive ? 2 : 1 }}
->>>>>>> eaf6556d2c0b3902adc5aad2db4f94d525164e40
     >
       {!targetShop ? (
         <div className="w-full h-full flex items-center justify-center">
@@ -95,16 +90,11 @@ export const ShopInfoOverlay: React.FC<ShopInfoOverlayProps> = ({ shop }) => {
           style={{ height: `${AREA_HEIGHT}px`, gap: '24px' }}
         >
           
-<<<<<<< HEAD
-          {/* 1. ロゴ表示エリア */}
-          <div className="relative flex justify-center items-center shrink-0" style={{ width: '415px', height: '415px', marginTop: '4px', marginBottom: '30px' }}>
-=======
           {/* ブロック1: ロゴ（フレーム）— 固定サイズ */}
           <div 
             className="relative flex justify-center items-center shrink-0" 
             style={{ width: '440px', height: '440px' }}
           >
->>>>>>> eaf6556d2c0b3902adc5aad2db4f94d525164e40
             <img 
               src={logoFrame}
               alt=""
@@ -115,32 +105,17 @@ export const ShopInfoOverlay: React.FC<ShopInfoOverlayProps> = ({ shop }) => {
                 src={logoUrl} 
                 alt={`${displayName} Logo`} 
                 className="object-contain relative z-10"
-<<<<<<< HEAD
-                style={{ width: '320px' }}
-=======
                 style={{ maxWidth: '340px', maxHeight: '340px' }}
->>>>>>> eaf6556d2c0b3902adc5aad2db4f94d525164e40
               />
             ) : (
               <div className="h-24 w-full flex items-center justify-center text-2xl font-bold opacity-30 relative z-10" />
             )}
           </div>
 
-<<<<<<< HEAD
-          {/* 2. スペーサー：30px固定間隔 */}
-          <div style={{ height: '30px' }}></div>
-        
-          {/* 3. 店舗名とジャンルの塊（下部に配置） */}
-          <div className="flex flex-col items-center">
-            <h2 className="text-[60px] font-black leading-tight tracking-tight mb-7.5">
-              {displayName}
-            </h2>
-=======
           {/* ブロック2: 店舗名 */}
           <h2 className="text-[64px] font-black leading-tight tracking-tight shrink-0">
             {displayName}
           </h2>
->>>>>>> eaf6556d2c0b3902adc5aad2db4f94d525164e40
 
           {/* ブロック3: ジャンル詳細 — ジャンル有無に関わらず同じ高さの枠 */}
           <div 
@@ -148,16 +123,11 @@ export const ShopInfoOverlay: React.FC<ShopInfoOverlayProps> = ({ shop }) => {
             style={{ height: `${GENRE_BLOCK_HEIGHT}px` }}
           >
             {displayGenre && (
-<<<<<<< HEAD
-              <div className="inline-block border-6 border-[#bf995b] rounded-full mb-7.5" style={{ paddingLeft: '60px', paddingRight: '60px', paddingTop: '12px', paddingBottom: '12px' }}>
-                <p className="text-[32px] font-bold text-[#4b2c20]">
-=======
               <div 
                 className="inline-block border-4 border-[#bf995b] rounded-full" 
                 style={{ paddingLeft: '30px', paddingRight: '30px', paddingTop: '10px', paddingBottom: '10px' }}
               >
                 <p className="text-[24px] font-bold text-[#4b2c20]">
->>>>>>> eaf6556d2c0b3902adc5aad2db4f94d525164e40
                   {displayGenre}
                 </p>
               </div>
