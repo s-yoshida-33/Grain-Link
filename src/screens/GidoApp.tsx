@@ -60,9 +60,12 @@ export const GidoApp: React.FC = () => {
     loadShops();
 
     // 3. SSE接続とイベントリスナー設定
+    // このeffectはsettingsの参照が変わる度に再実行されるため、
+    // 古いリスナーを確実に解除しないと稼働時間に応じて蓄積してしまう
+    const unsubscribers: Array<() => void> = [];
     const connectSse = async () => {
       // SSE接続状態ログ
-      sseClient.on('status_change', ({ status }) => {
+      unsubscribers.push(sseClient.on('status_change', ({ status }) => {
         // setIsSseConnected(status === 'connected');
         logInfo('DATA_SYNC', 'SSE Status changed', { status });
 
@@ -70,18 +73,18 @@ export const GidoApp: React.FC = () => {
           logInfo('DATA_SYNC', 'Bridge is ready. Retrying REST API fetch...');
           loadShops();
         }
-      });
+      }));
 
       // 分離パターン: SSEは更新通知のみ。データはREST経由で取得する。
-      sseClient.on('shops', () => {
+      unsubscribers.push(sseClient.on('shops', () => {
         logInfo('DATA_SYNC', 'Shop update signal received via SSE, fetching from REST');
         loadShops();
-      });
+      }));
 
-      sseClient.on('update', () => {
+      unsubscribers.push(sseClient.on('update', () => {
         logInfo('DATA_SYNC', 'Update signal received via SSE, fetching from REST');
         loadShops();
-      });
+      }));
 
       // エンドポイントが設定されていれば接続
       if (settings.apiEndpoint) {
@@ -92,6 +95,7 @@ export const GidoApp: React.FC = () => {
     connectSse();
 
     return () => {
+      unsubscribers.forEach(unsubscribe => unsubscribe());
       sseClient.disconnect();
     };
   }, [settings, loadShops]);
