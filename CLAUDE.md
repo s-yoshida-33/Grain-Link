@@ -1,10 +1,75 @@
-# 開発ルール
+# CLAUDE.md
 
-## ブランチ運用
-- **作業・プッシュ先は常に `dev` ブランチ**
-- 作業開始前に必ず最新を取得する: `git fetch origin dev && git pull origin dev`
-- プルリクエストは明示的に依頼された場合のみ作成する
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## コミット
-- 変更内容が明確に伝わるメッセージを記述する
-- 複数ファイルの変更は1コミットにまとめて構わない
+## What this is
+
+Grain-Link は、商業施設の**大型非タッチ・飲食テナント向け**ディスプレイアプリ。Gidoと同系統のTauri2 + React19 + TypeScriptのWindows x64キオスクアプリ（フルスクリーン・常時最前面）で、店舗（テナント）の映像・画像サイネージと店舗一覧を表示する。GidoとUIコンポーネント構成（`GidoApp.tsx`, `VideoSignageView`, `ShopListView`等）が似ているが、**別コードベース**（gitのsubmodule/monorepoではない）。
+
+WonderScreen CMSとの連携は無く、独自のメディア配信（S3的なCDN `dl.tti.ninja/grain-link/medias/`）を使う点がGido/Gido-Touchと異なる。
+
+現バージョン: 1.1.24（`package.json`）。GidoやGido-Touch-Miniと同時期にElectronからTauriへ移行（`feature/migration-to-tauri`ブランチ履歴）。
+
+## Repository layout
+
+- `src/api/` — Bridge-Ground/メディアAPI向けクライアント（`useBridgeRegistration.ts`等）
+- `src/screens/` — 画面（映像サイネージ、店舗一覧等）
+- `src/components/` — UIコンポーネント
+- `src/hooks/` — カスタムフック
+- `src/config/` — 設定（`apiEndpoint`のデフォルトは`localhost:8090`、モールID等）
+- `src/types/` — 型定義
+- `bridgeState.ts` — Bridge-Ground接続状態の管理（循環importを避けるため専用ファイルに分離）
+- `BUILD_EXECUTION_STEPS.md` / `BUILD_PASSWORD_GUIDE.md` / `BUILD_TROUBLESHOOTING.md` / `FILE_LOCK_ERROR_SOLUTION.md` / `QUICK_BUILD_GUIDE.md` — 署名付きビルドの手順・パスワード管理・トラブルシューティング集（他3アプリより充実したビルドドキュメント群）
+
+## Development commands
+
+Docker不使用。Node + Rust + Tauri CLIのローカル環境で直接実行する。
+
+```bash
+npm run dev            # Viteのみ
+npm run tauri:dev / npm run desktop:dev   # Tauri込みの開発実行
+npm run build          # tsc -b && vite build
+npm run lint
+```
+
+リリースビルド（詳細は`BUILD_EXECUTION_STEPS.md`参照）:
+```bash
+npm run tauri:build:signed
+npm run tauri:release
+npm run bump:version
+npm run optimize:media / npm run media:compress
+```
+
+署名キーのパスワード管理には3方式あり、`BUILD_PASSWORD_GUIDE.md`に手順がある（都度入力／環境変数／GitHub Secrets）。ローカル開発では環境変数方式が推奨されている。
+
+## Known gotchas
+
+- **`OS error 5`（ファイルロック）ビルド失敗**: 前回ビルドの成果物が掴まれたままだと発生する。`BUILD_TROUBLESHOOTING.md`に対処法（管理者権限PowerShell、`Remove-Item target -Recurse`、セキュリティソフトの干渉確認）がまとまっている。
+- **Bridge-Groundとの連携がGido系より広い**: `/api/apps/register`・`/api/apps/{id}/heartbeat`・`/api/apps/{id}/screenshot`（WebSocket）を使い、リモート監視用のスクリーンショット取得にも対応している。
+- **WonderScreen CMSとの連携は無い**。映像・メディアは`apiEndpoint`（既定`localhost:8090`、Bridge-Ground経由）と独自CDN（`dl.tti.ninja/grain-link/medias/{mallId}/videos/{hostname}/latest.json`）から取得する。GidoのCMS_API.mdに相当するドキュメントは存在しない。
+- **GidoとUI構成が似ているが別コードベース**。Gido側の修正をそのまま持ち込めるとは限らない（差分は都度確認）。
+
+## Branches & deploy flow
+
+- 作業は `dev` を起点に `hotfix/<内容>` または `feature/<内容>` ブランチを作成して行う（git worktreeで作業ディレクトリを分けるのが基本、`C:\dev\floor-guide-Issue\#000.md`参照）
+- 作業完了後はそのブランチをpushしてPRを作成し、`dev`へのマージが完了した時点で対応するIssueをクローズする
+- 過去は`dev`に直接作業・pushする運用だったが、複数リポジトリ・複数タスクの並行作業に対応するため上記のブランチ運用に移行した
+- リリース手順の詳細は`BUILD_EXECUTION_STEPS.md`を参照（署名 → ビルド → `latest.yml`生成 → GitHub Release資産アップロードの3点セット）。
+
+## Architecture
+
+```
+Bridge-Ground（同一STB、:8090）──shops/mediaステータス + apps register/heartbeat/screenshot──► 店舗一覧・監視
+dl.tti.ninja（CDN）──────────────────────────────────映像/画像メディア───────────────────────► サイネージ枠
+```
+
+- WonderScreen CMSは介さず、Bridge-Ground（ローカル）とCDN（メディア配信）の2系統でデータを取得する。
+
+## Code conventions
+
+- ESLint（`npm run lint`）に従う。
+- コミットメッセージは変更内容が明確に伝わるものにする。複数ファイルの変更を1コミットにまとめても構わない。
+
+## Project context
+
+Grain-Linkは「フロアガイド」製品群のうち、飲食テナント向けの大型非タッチ版。Gidoと構造は似ているが独立したコードベースで、WonderScreen CMSは使わず独自CDNでメディアを配信する点が特徴。他の4リポジトリ（Gido/Gido-Touch/Gido-Touch-Mini/Bridge-Ground/portal-cms）と合わせて`s-yoshida-33`配下でホストされている姉妹プロジェクト。ワークフロー運用ルールは`C:\dev\floor-guide-Issue\#000.md`を参照。
