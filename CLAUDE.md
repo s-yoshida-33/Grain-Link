@@ -54,7 +54,14 @@ npm run optimize:media / npm run media:compress
 - 作業は `dev` を起点に `hotfix/<内容>` または `feature/<内容>` ブランチを作成して行う（git worktreeで作業ディレクトリを分けるのが基本、`C:\dev\floor-guide-Issue\#000.md`参照）
 - 作業完了後はそのブランチをpushしてPRを作成し、`dev`へのマージが完了した時点で対応するIssueをクローズする
 - 過去は`dev`に直接作業・pushする運用だったが、複数リポジトリ・複数タスクの並行作業に対応するため上記のブランチ運用に移行した
-- リリース手順の詳細は`BUILD_EXECUTION_STEPS.md`を参照（署名 → ビルド → `latest.yml`生成 → GitHub Release資産アップロードの3点セット）。
+- **デフォルトブランチは`main`ではなく`release`**（2026-07-10にリネーム。旧`main`は初期セットアップ後ほぼ更新されずに放置されていた）。`release`への**push**がGitHub Actions（`.github/workflows/build-release.yml`）の本番リリーストリガーになっている。
+- **本番リリース手順**:
+  1. `dev`で`npm run bump:version`を実行し、`package.json`のバージョンを先に上げる（**これを忘れると次のステップでワークフローが失敗する**、4.のガード参照）
+  2. `dev` → `release` へPRを作成・マージ（`gh pr create --base release --head dev` → `gh pr merge`）
+  3. `release`へのpushをトリガーに、GitHub Actionsが署名付きビルド（`npm run tauri:release`）→ S3アップロード（`dl.tti.ninja/public/grain-link/releases/`、`.exe`/`.exe.sig`/`latest.json`）→ タグ`vX.Y.Z`作成 → GitHub Release作成、まで自動実行する
+  4. ワークフロー冒頭の「Check version not already released」ステップが、同名タグ（`vX.Y.Z`）が既に存在する場合はジョブを失敗させる（1.のバージョン上げ忘れによる既存リリース・S3成果物の無言上書きを防ぐガード）
+- **2026-07-10以前はタグ（`v*`）のpushがリリーストリガーだった**（`git tag vX.Y.Z && git push origin vX.Y.Z`、デフォルトブランチは当時`main`）。「デフォルトブランチへのpushでリリース」という一般的な形に統一するため変更した。
+- `BUILD_EXECUTION_STEPS.md`は上記変更前の、CI連携もない完全手動フロー（ローカルビルド→GitHub Releaseへの手動アップロード）を記した古いドキュメントで、現状のCI自動アップロードフローとは一致していない（要更新、未対応）。
 
 ## Architecture
 
