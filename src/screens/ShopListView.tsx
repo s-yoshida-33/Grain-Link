@@ -2,8 +2,7 @@ import React, { useMemo } from 'react';
 import type { Shop } from '../types/shop';
 import type { ShopListGridConfig } from '../types/settings';
 import { ShopCard } from '../components/ShopCard';
-import shopListBg from '../assets/malls/sakaikitahanada/shoplist-back.webp';
-import areaTitleImage from '../assets/malls/sakaikitahanada/area-title.webp';
+import { useAppSettings } from '../hooks/useAppSettings';
 
 interface ShopListViewProps {
   shops: Shop[];
@@ -16,22 +15,31 @@ const TARGET_AREA = "Food Forest";
 const MAX_SLOTS = 12; // 全12枠固定
 
 export const ShopListView: React.FC<ShopListViewProps> = ({ shops, gridConfig }) => {
+  const { settings } = useAppSettings();
+  const mallId = settings?.mallId || 'sakaikitahanada';
+  
+  // アセットパス
+  const shopListBg = `./assets/malls/${mallId}/shoplist-back.webp`;
+  const areaTitleImage = `./assets/malls/${mallId}/area-title.webp`;
   
   // 表示用ショップリストの生成
   const displaySlots = useMemo(() => {
+    const genreSubFilter = settings?.genreSubFilter;
+
     // 1. 条件に合致する店舗を抽出
-    const filteredShops = shops.filter(shop => 
-      // APIから取得するデータ構造に依存するが、
-      // ここではShop型にgenre, areaが含まれていると仮定してフィルタリング
-      // 現状のShop型定義にはないので後ほど型定義を拡張する必要がある
-      (shop as any).genre === TARGET_GENRE && 
-      (shop as any).area === TARGET_AREA
+    //    genreSubFilter が設定されている場合は新API（genreSub）でフィルタリング
+    //    未設定の場合は従来通り genre + area でフィルタリング
+    const filteredShops = shops.filter(shop =>
+      genreSubFilter
+        ? shop.genreSub === genreSubFilter
+        : (shop as any).genre === TARGET_GENRE && (shop as any).area === TARGET_AREA
     ).sort((a, b) => {
-      // number: F-1から順に並ぶようにソート (自然順ソート)
       const numA = a.number || "";
       const numB = b.number || "";
       return numA.localeCompare(numB, undefined, { numeric: true });
     });
+
+
 
     // 2. 最大12枠分の配列を作成
     const slots: (Shop | undefined)[] = new Array(MAX_SLOTS).fill(undefined);
@@ -42,17 +50,17 @@ export const ShopListView: React.FC<ShopListViewProps> = ({ shops, gridConfig })
     });
 
     return slots;
-  }, [shops]);
+  }, [shops, settings?.genreSubFilter]);
 
   return (
     <div 
       className="w-full h-full p-8 bg-cover bg-center bg-no-repeat relative"
-      style={{ backgroundImage: `url(${shopListBg})` }}
+      style={{ backgroundImage: `url('${shopListBg}')` }}
     >
       <img 
         src={areaTitleImage} 
         alt="Area Title" 
-        className="absolute top-[50px] left-1/2 -translate-x-1/2 z-10 rounded-[15px]" 
+        className="absolute top-12.5 left-1/2 -translate-x-1/2 z-10 rounded-[15px]" 
       />
        {/* 
          グリッドレイアウト: 
@@ -60,9 +68,9 @@ export const ShopListView: React.FC<ShopListViewProps> = ({ shops, gridConfig })
          12枠固定(例えば 3x4 や 2x6)であればTailwindのクラスで指定する方が簡単。
          ここでは設定値(settings.ts)を尊重しつつ、スタイルを適用する。
        */}
-      <div className="flex w-full h-full items-start justify-center pt-[320px]">
+      <div className="flex w-full h-full items-start justify-center pt-80">
         <div 
-          className="grid gap-[15px]"
+          className="grid gap-3.75"
           style={{
             gridTemplateRows: `repeat(${gridConfig.rows}, auto)`,
             gridTemplateColumns: `repeat(${gridConfig.cols}, auto)`,
