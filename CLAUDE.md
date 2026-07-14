@@ -48,6 +48,7 @@ npm run optimize:media / npm run media:compress
 - **Bridge-Groundとの連携がGido系より広い**: `/api/apps/register`・`/api/apps/{id}/heartbeat`・`/api/apps/{id}/screenshot`（WebSocket）を使い、リモート監視用のスクリーンショット取得にも対応している。
 - **WonderScreen CMSとの連携は無い**。映像・メディアは`apiEndpoint`（既定`localhost:8090`、Bridge-Ground経由）と独自CDN（`dl.tti.ninja/grain-link/medias/{mallId}/videos/{hostname}/latest.json`）から取得する。GidoのCMS_API.mdに相当するドキュメントは存在しない。
 - **GidoとUI構成が似ているが別コードベース**。Gido側の修正をそのまま持ち込めるとは限らない（差分は都度確認）。
+- **署名鍵ファイル（`~/TAURI_KEY_PASSWORD.sh`・`.sh.pub`）は、コミット`a20e5c9`で誤ってgit管理下に追加され、Publicリポジトリの状態でpushされていた**（2026-07-14発覚、Gidoと同時に発覚した同種の問題）。`git-filter-repo`で全履歴・全ブランチ・全タグから完全に除去し、force pushで上書き済み（ローカルチェックアウトも再クローン済み）。`.gitignore`に`~/*`を追加し再混入を防止している。**鍵のローテーションは意図的に未実施**（現時点でこのリポジトリをcloneしているのは開発者本人のみのため優先度を下げている）。今後この鍵をコミットに含めないこと。ローテーションが必要になった場合、既存端末は現行の公開鍵しか信頼しないため、「旧鍵で署名しつつ新しい公開鍵を埋め込んだリリース」を経由する2段階の切り替えが必要になる点に注意。
 
 ## Branches & deploy flow
 
