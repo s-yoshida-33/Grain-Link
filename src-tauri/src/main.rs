@@ -1094,6 +1094,17 @@ fn main() {
         .build(tauri::generate_context!())
         .expect("error while building tauri application");
 
+    // Re-apply fullscreen shortly after startup to force WebView2 to resync its
+    // render surface with the final window bounds. Mirrors the resync that already
+    // happens on WindowEvent::Focused(true) (minimize/restore), which is the only
+    // other place this app forces a fullscreen re-apply.
+    if let Some(window) = app.get_webview_window("main") {
+        std::thread::spawn(move || {
+            std::thread::sleep(std::time::Duration::from_millis(300));
+            let _ = window.set_fullscreen(true);
+        });
+    }
+
     app.run(|_app_handle, event| {
         if let RunEvent::ExitRequested { api, .. } = &event {
             if !FORCE_QUIT.load(Ordering::Relaxed) {
