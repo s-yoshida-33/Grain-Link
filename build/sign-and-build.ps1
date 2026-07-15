@@ -19,14 +19,23 @@ Write-Host "[*] Starting Tauri signed build..." -ForegroundColor Cyan
 $rootDir = Split-Path -Parent $PSScriptRoot
 
 # --- Key Setup ---
-$keyPaths = @(
-    (Join-Path $PSScriptRoot "..\~\TAURI_KEY_PASSWORD.sh"),
-    (Join-Path $env:USERPROFILE "TAURI_KEY_PASSWORD.sh"),
-    (Join-Path $env:USERPROFILE ".ssh\TAURI_KEY_PASSWORD.sh")
-)
-$keyPath = $null
-foreach ($path in $keyPaths) { if (Test-Path $path) { $keyPath = $path; break } }
-if (-not $keyPath) { Write-Host "[!] Error: Private key not found" -ForegroundColor Red; exit 1 }
+# CI: environment variable is pre-set by GitHub Actions secrets
+# Local: read key from file
+if ($env:TAURI_SIGNING_PRIVATE_KEY) {
+    Write-Host "[+] Using signing key from environment variable (CI mode)" -ForegroundColor Green
+} else {
+    $keyPaths = @(
+        (Join-Path $PSScriptRoot "..\~\TAURI_KEY_PASSWORD.sh"),
+        (Join-Path $env:USERPROFILE "TAURI_KEY_PASSWORD.sh"),
+        (Join-Path $env:USERPROFILE ".ssh\TAURI_KEY_PASSWORD.sh")
+    )
+    $keyPath = $null
+    foreach ($path in $keyPaths) { if (Test-Path $path) { $keyPath = $path; break } }
+    if (-not $keyPath) { Write-Host "[!] Error: Private key not found" -ForegroundColor Red; exit 1 }
+
+    $keyContent = Get-Content $keyPath -Raw
+    $env:TAURI_SIGNING_PRIVATE_KEY = $keyContent
+}
 
 # --- Password Setup ---
 if (-not $Password) {
@@ -44,8 +53,6 @@ if (-not $Password) {
         [System.Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr)
     }
 }
-$keyContent = Get-Content $keyPath -Raw
-$env:TAURI_SIGNING_PRIVATE_KEY = $keyContent
 $env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD = $plainPassword
 $plainPassword = $null # Cleanup
 
